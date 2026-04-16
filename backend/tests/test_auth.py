@@ -82,6 +82,22 @@ def test_me_returns_401_with_invalid_jwt(auth_client):
     assert response.status_code == 401
 
 
+def test_me_returns_401_for_non_numeric_sub(auth_client):
+    from app.core.security import create_access_token
+
+    token = create_access_token({"sub": "not-a-number", "email": "x@y.com"})
+    response = auth_client.get("/api/auth/me", headers={"Authorization": f"Bearer {token}"})
+    assert response.status_code == 401
+
+
+def test_me_returns_401_for_missing_sub(auth_client):
+    from app.core.security import create_access_token
+
+    token = create_access_token({"email": "x@y.com"})
+    response = auth_client.get("/api/auth/me", headers={"Authorization": f"Bearer {token}"})
+    assert response.status_code == 401
+
+
 def test_refresh_returns_new_token_for_valid_jwt(auth_client):
     login = auth_client.post("/api/auth/login", json={"email": "admin@example.com", "password": "secret123"})
     token = login.json()["access_token"]

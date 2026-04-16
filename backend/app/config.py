@@ -1,7 +1,10 @@
+from pydantic import model_validator
 from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
+    ENV: str = "dev"
+
     DATABASE_URL: str = "postgresql://jobhunter:jobhunter@localhost:5433/jobhunter"
     JWT_SECRET: str = "change-me"
     JWT_ALGORITHM: str = "HS256"
@@ -25,6 +28,16 @@ class Settings(BaseSettings):
     ADMIN_PASSWORD: str = "change-me"
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
+
+    @model_validator(mode="after")
+    def _forbid_default_secrets_outside_dev(self):
+        if self.ENV == "dev":
+            return self
+        if self.JWT_SECRET == "change-me":
+            raise ValueError("JWT_SECRET must be set to a real value when ENV != 'dev'")
+        if self.ADMIN_PASSWORD == "change-me":
+            raise ValueError("ADMIN_PASSWORD must be set to a real value when ENV != 'dev'")
+        return self
 
 
 settings = Settings()

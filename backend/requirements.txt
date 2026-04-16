@@ -1,0 +1,40 @@
+# Core
+fastapi==0.115.*
+uvicorn[standard]==0.34.*
+sqlalchemy==2.0.*
+alembic==1.14.*
+psycopg2-binary==2.9.*
+pydantic-settings==2.7.*
+
+# Auth
+python-jose[cryptography]==3.3.*
+passlib[bcrypt]==1.7.*
+
+# HTTP
+httpx==0.28.*
+
+# Scraping
+python-jobspy==1.1.*
+beautifulsoup4==4.12.*
+apify-client>=1.0
+
+# AI / CV
+# resume-matcher — install separately (may need special handling)
+
+# Document generation
+python-docx==1.1.*
+
+# Scheduling
+apscheduler==3.10.*
+
+# Encryption
+cryptography>=42.0
+
+# Utils
+pandas==2.2.*
+python-multipart==0.0.*
+
+# Testing
+pytest==8.*
+pytest-asyncio==0.24.*
+httpx  # also used for TestClient

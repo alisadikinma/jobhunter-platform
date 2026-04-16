@@ -18,6 +18,13 @@ from app.database import Base
 import app.models.user  # noqa: F401
 import app.models.company  # noqa: F401
 import app.models.job  # noqa: F401
+import app.models.application  # noqa: F401
+import app.models.cv  # noqa: F401
+import app.models.email_draft  # noqa: F401
+import app.models.scrape_config  # noqa: F401
+import app.models.agent_job  # noqa: F401
+import app.models.apify_account  # noqa: F401
+import app.models.portfolio_asset  # noqa: F401
 
 target_metadata = Base.metadata
 

@@ -1,5 +1,6 @@
 import os
 
+import psycopg
 import pytest
 from fastapi.testclient import TestClient
 from pytest_postgresql import factories
@@ -7,6 +8,42 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from app.main import app
+
+
+_PG_CONN_KW = dict(
+    host=os.getenv("TEST_PG_HOST", "localhost"),
+    port=int(os.getenv("TEST_PG_PORT", "5433")),
+    user=os.getenv("TEST_PG_USER", "jobhunter"),
+    password=os.getenv("TEST_PG_PASSWORD", "jobhunter"),
+    dbname="jobhunter",
+)
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _drop_orphaned_test_templates():
+    """pytest-postgresql can leave jobhunter_test_tmpl behind after a crashed
+    session. On the next run, CREATE DATABASE collides. Wipe before starting."""
+    try:
+        conn = psycopg.connect(**_PG_CONN_KW, autocommit=True)
+    except psycopg.Error:
+        yield
+        return
+
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE pg_database SET datistemplate=false "
+                "WHERE datname='jobhunter_test_tmpl'"
+            )
+            cur.execute(
+                "SELECT pg_terminate_backend(pid) FROM pg_stat_activity "
+                "WHERE datname IN ('jobhunter_test','jobhunter_test_tmpl')"
+            )
+            cur.execute("DROP DATABASE IF EXISTS jobhunter_test")
+            cur.execute("DROP DATABASE IF EXISTS jobhunter_test_tmpl")
+    finally:
+        conn.close()
+    yield
 
 
 @pytest.fixture

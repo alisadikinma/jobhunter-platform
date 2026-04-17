@@ -13,6 +13,7 @@ from app.schemas.scrape_config import (
     ScrapeRunRequest,
     ScrapeRunResponse,
 )
+from app.services.claude_service import spawn_claude
 from app.services.scraper_service import run_ad_hoc, run_scrape_config
 
 router = APIRouter(prefix="/api/scraper", tags=["scraper"])
@@ -101,6 +102,28 @@ def run_scraper(
         variant_target=body.variant_target,
         max_results_per_source=body.max_results_per_source,
     )
+
+
+@router.post("/score-unscored", status_code=202)
+def score_unscored(
+    db: Session = Depends(get_db),
+    _current: User = Depends(get_current_user),
+):
+    """Fire a /job-score skill against the batch of currently-unscored jobs.
+
+    Returns the agent_job id so the caller can poll progress. The actual
+    scoring happens in a Claude CLI subprocess; see claude-plugin/skills/
+    job-score.md for the contract.
+    """
+    agent_job = spawn_claude(
+        db,
+        skill_name="/job-score",
+        reference_id=None,
+        reference_type="scraped_jobs_batch",
+        job_type="job_score",
+        model_used="claude-sonnet-4-6",
+    )
+    return {"agent_job_id": agent_job.id, "status": agent_job.status}
 
 
 @router.get("/status")

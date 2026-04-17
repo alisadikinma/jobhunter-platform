@@ -11,6 +11,10 @@ class Settings(BaseSettings):
     JWT_EXPIRE_MINUTES: int = 1440
 
     CLAUDE_PATH: str = "claude"
+    CLAUDE_PLUGIN_PATH: str = "/app/claude-plugin"  # mount path inside API container
+    CALLBACK_SECRET: str = ""  # shared token for Claude CLI -> FastAPI callbacks
+    CALLBACK_API_URL: str = "http://localhost:8000"  # how the subprocess reaches us
+    AGENT_JOB_LOG_DIR: str = "/tmp/jobhunter_agent_jobs"
 
     APIFY_FERNET_KEY: str = ""
     APIFY_LINKEDIN_ENABLED: bool = False

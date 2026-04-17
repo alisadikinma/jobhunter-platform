@@ -37,12 +37,12 @@ class ScrapedJob(Base):
     status = Column(String(20), server_default="new")
     is_favorite = Column(Boolean, server_default="false")
 
-    enriched_at = Column(DateTime)
-    scraped_at = Column(DateTime, server_default=func.now())
-    posted_at = Column(DateTime)
-    expires_at = Column(DateTime)
-    created_at = Column(DateTime, server_default=func.now())
-    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+    enriched_at = Column(DateTime(timezone=True))
+    scraped_at = Column(DateTime(timezone=True), server_default=func.now())
+    posted_at = Column(DateTime(timezone=True))
+    expires_at = Column(DateTime(timezone=True))
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     __table_args__ = (
         Index("idx_jobs_status", "status"),

@@ -22,8 +22,8 @@ class EmailDraft(Base):
     personalization = Column(JSONB)
 
     status = Column(String(20), server_default="draft")
-    sent_at = Column(DateTime)
+    sent_at = Column(DateTime(timezone=True))
 
     model_used = Column(String(50))
-    created_at = Column(DateTime, server_default=func.now())
-    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())

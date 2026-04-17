@@ -24,7 +24,7 @@ class PortfolioAsset(Base):
     status = Column(String(20), server_default="draft")
     auto_generated = Column(Boolean, server_default="false")
     source_path = Column(Text)
-    reviewed_at = Column(DateTime)
+    reviewed_at = Column(DateTime(timezone=True))
     reviewed_by = Column(Integer, ForeignKey("users.id"))
 
-    created_at = Column(DateTime, server_default=func.now())
+    created_at = Column(DateTime(timezone=True), server_default=func.now())

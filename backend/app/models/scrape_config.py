@@ -24,8 +24,8 @@ class ScrapeConfig(Base):
     max_results_per_source = Column(Integer, server_default="30")
 
     cron_expression = Column(String(50), server_default="0 */3 * * *")
-    last_run_at = Column(DateTime)
+    last_run_at = Column(DateTime(timezone=True))
     last_run_results = Column(JSONB)
 
-    created_at = Column(DateTime, server_default=func.now())
-    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())

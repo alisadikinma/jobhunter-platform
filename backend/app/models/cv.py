@@ -50,11 +50,11 @@ class MasterCV(Base):
     # Phase 2 prep columns (used when Portfolio_v2 integration added)
     source_type = Column(String(20), server_default="manual")
     source_hash = Column(String(64))
-    synced_at = Column(DateTime)
+    synced_at = Column(DateTime(timezone=True))
     source_version = Column(String(50))
 
-    created_at = Column(DateTime, server_default=func.now())
-    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
 
 class GeneratedCV(Base):
@@ -81,8 +81,8 @@ class GeneratedCV(Base):
     generation_log = Column(JSONB)
     status = Column(String(20), server_default="pending")
 
-    created_at = Column(DateTime, server_default=func.now())
-    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
 
 class CoverLetter(Base):
@@ -95,5 +95,5 @@ class CoverLetter(Base):
     tone = Column(String(30), server_default="professional")
     model_used = Column(String(50))
     status = Column(String(20), server_default="draft")
-    created_at = Column(DateTime, server_default=func.now())
-    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())

@@ -31,10 +31,20 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def _forbid_default_secrets_outside_dev(self):
+        if self.APIFY_FERNET_KEY:
+            from cryptography.fernet import Fernet
+
+            try:
+                Fernet(self.APIFY_FERNET_KEY.encode())
+            except (ValueError, TypeError) as e:
+                raise ValueError(f"APIFY_FERNET_KEY is not a valid Fernet key: {e}") from e
+
         if self.ENV == "dev":
             return self
         if self.JWT_SECRET == "change-me":
             raise ValueError("JWT_SECRET must be set to a real value when ENV != 'dev'")
+        if len(self.JWT_SECRET.encode("utf-8")) < 32:
+            raise ValueError("JWT_SECRET must be at least 32 bytes when ENV != 'dev' (RFC 7518 §3.2)")
         if self.ADMIN_PASSWORD == "change-me":
             raise ValueError("ADMIN_PASSWORD must be set to a real value when ENV != 'dev'")
         return self

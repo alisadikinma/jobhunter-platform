@@ -17,18 +17,18 @@ class ApifyAccount(Base):
 
     monthly_credit_usd = Column(Numeric(10, 2), server_default="5.00")
     credit_used_usd = Column(Numeric(10, 2), server_default="0.00")
-    quota_reset_at = Column(DateTime)
-    exhausted_at = Column(DateTime)
+    quota_reset_at = Column(DateTime(timezone=True))
+    exhausted_at = Column(DateTime(timezone=True))
 
-    last_used_at = Column(DateTime)
-    cooldown_until = Column(DateTime)
+    last_used_at = Column(DateTime(timezone=True))
+    cooldown_until = Column(DateTime(timezone=True))
     consecutive_failures = Column(Integer, server_default="0")
     last_error = Column(Text)
-    last_success_at = Column(DateTime)
+    last_success_at = Column(DateTime(timezone=True))
 
     notes = Column(Text)
-    created_at = Column(DateTime, server_default=func.now())
-    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     __table_args__ = (
         Index("idx_apify_status", "status", "priority"),
@@ -52,9 +52,9 @@ class ApifyUsageLog(Base):
     error_message = Column(Text)
     duration_ms = Column(Integer)
 
-    started_at = Column(DateTime)
-    completed_at = Column(DateTime)
-    created_at = Column(DateTime, server_default=func.now())
+    started_at = Column(DateTime(timezone=True))
+    completed_at = Column(DateTime(timezone=True))
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
 
     __table_args__ = (
         Index("idx_usage_account", "account_id", created_at.desc()),

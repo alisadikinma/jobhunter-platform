@@ -14,13 +14,13 @@ class Application(Base):
 
     status = Column(String(30), server_default="targeting")
 
-    targeted_at = Column(DateTime, server_default=func.now())
-    applied_at = Column(DateTime)
-    email_sent_at = Column(DateTime)
-    replied_at = Column(DateTime)
-    interview_at = Column(DateTime)
-    offered_at = Column(DateTime)
-    closed_at = Column(DateTime)
+    targeted_at = Column(DateTime(timezone=True), server_default=func.now())
+    applied_at = Column(DateTime(timezone=True))
+    email_sent_at = Column(DateTime(timezone=True))
+    replied_at = Column(DateTime(timezone=True))
+    interview_at = Column(DateTime(timezone=True))
+    offered_at = Column(DateTime(timezone=True))
+    closed_at = Column(DateTime(timezone=True))
 
     applied_via = Column(String(50))
     applied_url = Column(String(1000))
@@ -33,12 +33,12 @@ class Application(Base):
     notes = Column(Text)
     tags = Column(ARRAY(Text))
 
-    cv_id = Column(Integer)
-    email_draft_id = Column(Integer)
-    cover_letter_id = Column(Integer)
+    cv_id = Column(Integer, ForeignKey("generated_cvs.id", ondelete="SET NULL"))
+    email_draft_id = Column(Integer, ForeignKey("email_drafts.id", ondelete="SET NULL"))
+    cover_letter_id = Column(Integer, ForeignKey("cover_letters.id", ondelete="SET NULL"))
 
-    created_at = Column(DateTime, server_default=func.now())
-    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+    created_at = Column(DateTime(timezone=True), server_default=func.now())
+    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
 
     __table_args__ = (
         Index("idx_app_status", "status"),
@@ -56,4 +56,4 @@ class ApplicationActivity(Base):
     old_value = Column(String(100))
     new_value = Column(String(100))
     metadata_ = Column("metadata", JSONB)
-    created_at = Column(DateTime, server_default=func.now())
+    created_at = Column(DateTime(timezone=True), server_default=func.now())

@@ -210,6 +210,12 @@ portfolio_assets       # Portfolio items for CV tailoring (auto-scanned + manual
 - **Radius:** 6px buttons/inputs, 8px cards
 - **Row height:** 36-40px data tables
 
+## Architecture Decisions
+
+- **Sync SQLAlchemy (not async)** — plan mentioned async but the codebase uses sync `create_engine` + `Session` with `psycopg2-binary`. FastAPI runs sync DB dependencies in a threadpool, which is fine for a single-admin workload and avoids the `asyncpg` + `AsyncSession` learning curve. Revisit if request volume ever exceeds ~100 concurrent users.
+- **JWT via PyJWT (not python-jose)** — `python-jose` is unmaintained (last release 2022) and has open CVEs; `PyJWT>=2.8` is the industry replacement with near-identical API. All timestamps compared to JWT claims must be timezone-aware (`datetime.now(timezone.utc)`).
+- **TIMESTAMPTZ everywhere** — all `DateTime` columns are `DateTime(timezone=True)` mapped to PostgreSQL `TIMESTAMP WITH TIME ZONE`. Existing naive timestamps converted via `AT TIME ZONE 'UTC'` in migration `003_fk_tz_jsonb`.
+
 ## Debugging Checklist
 
 (Populated as issues are discovered during development)

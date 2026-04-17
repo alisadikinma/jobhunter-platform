@@ -1,0 +1,127 @@
+# Production compose — deployed on srv941303 behind Traefik.
+#
+# Required env (set on the host or via .env next to this file):
+#   DATABASE_URL, JWT_SECRET (>=32 bytes), ADMIN_EMAIL, ADMIN_PASSWORD,
+#   CALLBACK_SECRET (>=32 bytes), APIFY_FERNET_KEY (Fernet.generate_key()),
+#   ADZUNA_APP_ID, ADZUNA_APP_KEY (optional but recommended).
+#
+# Firecrawl services require the mendableai/firecrawl images — build them
+# from https://github.com/mendableai/firecrawl on the host first, or swap
+# to the hosted SaaS by setting FIRECRAWL_API_URL=https://api.firecrawl.dev
+# and FIRECRAWL_API_KEY=<your key>, then drop the firecrawl-* services.
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: jobhunter
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      POSTGRES_DB: jobhunter
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U jobhunter"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+  firecrawl-api:
+    image: mendableai/firecrawl-api:latest
+    profiles: ["firecrawl"]
+    environment:
+      - REDIS_URL=redis://redis:6379/1
+      - REDIS_RATE_LIMIT_URL=redis://redis:6379/1
+      - PORT=3002
+      - HOST=0.0.0.0
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  firecrawl-worker:
+    image: mendableai/firecrawl-worker:latest
+    profiles: ["firecrawl"]
+    environment:
+      - REDIS_URL=redis://redis:6379/1
+    depends_on:
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  api:
+    build:
+      context: ./backend
+    environment:
+      - ENV=prod
+      - DATABASE_URL=postgresql://jobhunter:${POSTGRES_PASSWORD}@db:5432/jobhunter
+      - JWT_SECRET=${JWT_SECRET:?set JWT_SECRET (>=32 bytes)}
+      - ADMIN_EMAIL=${ADMIN_EMAIL}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:?set ADMIN_PASSWORD}
+      - CALLBACK_SECRET=${CALLBACK_SECRET:?set CALLBACK_SECRET}
+      - CALLBACK_API_URL=http://api:8000
+      - CLAUDE_PATH=claude
+      - CLAUDE_PLUGIN_PATH=/app/claude-plugin
+      - APIFY_FERNET_KEY=${APIFY_FERNET_KEY:?set APIFY_FERNET_KEY}
+      - APIFY_LINKEDIN_ENABLED=${APIFY_LINKEDIN_ENABLED:-false}
+      - ADZUNA_APP_ID=${ADZUNA_APP_ID:-}
+      - ADZUNA_APP_KEY=${ADZUNA_APP_KEY:-}
+      - PROXY_URL=${PROXY_URL:-}
+      - PROXY_USERNAME=${PROXY_USERNAME:-}
+      - PROXY_PASSWORD=${PROXY_PASSWORD:-}
+      - FIRECRAWL_API_URL=${FIRECRAWL_API_URL:-http://firecrawl-api:3002}
+      - FIRECRAWL_API_KEY=${FIRECRAWL_API_KEY:-}
+    volumes:
+      - ./claude-plugin:/app/claude-plugin:ro
+      - cv_storage:/app/storage/cvs
+    depends_on:
+      db:
+        condition: service_healthy
+    command: >
+      sh -c "alembic upgrade head
+             && python scripts/seed_admin.py
+             && uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 2"
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.jobhunter-api.rule=Host(`jobs.alisadikinma.com`) && PathPrefix(`/api`)"
+      - "traefik.http.routers.jobhunter-api.entrypoints=websecure"
+      - "traefik.http.routers.jobhunter-api.tls.certresolver=le"
+      - "traefik.http.services.jobhunter-api.loadbalancer.server.port=8000"
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        NEXT_PUBLIC_API_URL: https://jobs.alisadikinma.com
+    environment:
+      - NEXT_PUBLIC_API_URL=https://jobs.alisadikinma.com
+    depends_on:
+      - api
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.jobhunter-web.rule=Host(`jobs.alisadikinma.com`)"
+      - "traefik.http.routers.jobhunter-web.entrypoints=websecure"
+      - "traefik.http.routers.jobhunter-web.tls.certresolver=le"
+      - "traefik.http.services.jobhunter-web.loadbalancer.server.port=3000"
+      - "traefik.http.routers.jobhunter-web.priority=1"
+      - "traefik.http.routers.jobhunter-api.priority=10"
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  cv_storage:
+
+networks:
+  default:
+    name: jobhunter
+    external: false

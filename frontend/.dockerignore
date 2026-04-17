@@ -1,0 +1,9 @@
+node_modules
+.next
+.env*
+npm-debug.log
+Dockerfile
+.dockerignore
+__tests__
+vitest.config.ts
+vitest.setup.ts

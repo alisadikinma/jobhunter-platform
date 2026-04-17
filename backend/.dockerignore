@@ -1,0 +1,13 @@
+.venv
+__pycache__
+*.pyc
+*.pyo
+.pytest_cache
+tests
+.env
+.env.*
+storage/*
+!storage/.gitkeep
+alembic/versions/*.pyc
+Dockerfile
+.dockerignore

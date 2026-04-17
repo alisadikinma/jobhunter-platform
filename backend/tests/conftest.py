@@ -9,7 +9,6 @@ from sqlalchemy.orm import sessionmaker
 
 from app.main import app
 
-
 _PG_CONN_KW = dict(
     host=os.getenv("TEST_PG_HOST", "localhost"),
     port=int(os.getenv("TEST_PG_PORT", "5433")),

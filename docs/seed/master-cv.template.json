@@ -1,0 +1,58 @@
+{
+  "basics": {
+    "name": "Ali Sadikin",
+    "label": "AI-Era Agency Engineer",
+    "email": "ali.sadikincom85@gmail.com",
+    "url": "https://alisadikinma.com",
+    "summary": "Short one-paragraph bio (used as fallback when no variant_summary applies).",
+    "location": {"city": "Jakarta", "country": "Indonesia", "remote": true},
+    "profiles": [
+      {"network": "GitHub", "username": "alisadikinma", "url": "https://github.com/alisadikinma"},
+      {"network": "LinkedIn", "username": "alisadikin", "url": "https://linkedin.com/in/alisadikin"}
+    ],
+    "summary_variants": {
+      "vibe_coding": "Senior engineer who ships agency-grade AI products in days, not months. Claude Code + Next.js 15 + FastAPI; four production launches in 2025.",
+      "ai_automation": "Builder of LLM-powered pipelines that replace manual ops. Claude CLI, MCP servers, n8n; shipped 6 internal agents now saving 40h/week.",
+      "ai_video": "End-to-end AI video pipeline architect: Runway + Veo + Nano Banana. From brief to final cut in 48h for brand + agency clients."
+    }
+  },
+  "work": [
+    {
+      "company": "Example Agency",
+      "position": "Lead AI Engineer",
+      "start_date": "2023-01",
+      "end_date": "Present",
+      "summary": "Led a 4-person team building agency-grade AI automation tools.",
+      "highlights": [
+        {
+          "text": "Shipped 6 production Claude Code plugins used by 200+ daily users across 3 agencies.",
+          "tags": ["claude-code", "rapid-build", "full-stack"],
+          "metrics": {"users": 200, "plugins": 6},
+          "relevance_hint": ["vibe_coding", "ai_automation"]
+        },
+        {
+          "text": "Built a Veo + Runway pipeline producing 40 branded videos/month at <$2/clip.",
+          "tags": ["video", "veo", "runway", "pipeline"],
+          "metrics": {"videos_per_month": 40, "cost_per_clip_usd": 2},
+          "relevance_hint": ["ai_video"]
+        }
+      ]
+    }
+  ],
+  "projects": [],
+  "education": [
+    {
+      "institution": "Example University",
+      "area": "Computer Science",
+      "study_type": "Bachelor",
+      "start_date": "2005",
+      "end_date": "2009"
+    }
+  ],
+  "skills": {
+    "ai_tooling": ["Claude Code", "Claude CLI", "Cursor", "MCP servers"],
+    "full_stack": ["TypeScript", "Next.js 15", "FastAPI", "PostgreSQL"],
+    "automation": ["n8n", "LangChain", "LangGraph", "APScheduler"],
+    "generative_media": ["Runway", "Veo", "Nano Banana", "Stable Diffusion Video"]
+  }
+}

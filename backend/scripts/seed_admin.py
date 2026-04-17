@@ -1,11 +1,12 @@
 """Seed default admin user from environment variables."""
 import sys
+
 sys.path.insert(0, ".")
 
 from app.config import settings
+from app.core.security import hash_password
 from app.database import SessionLocal
 from app.models.user import User
-from app.core.security import hash_password
 
 
 def seed():

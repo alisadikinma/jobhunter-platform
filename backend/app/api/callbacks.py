@@ -17,6 +17,7 @@ from app.models.agent_job import AgentJob
 from app.models.application import Application
 from app.models.company import Company
 from app.models.cv import GeneratedCV, MasterCV
+from app.models.email_draft import EmailDraft
 from app.models.job import ScrapedJob
 from app.models.portfolio_asset import PortfolioAsset
 from app.schemas.callbacks import (
@@ -118,8 +119,58 @@ def _dispatch_success(db: Session, agent_job: AgentJob, result: dict) -> str:
         return _apply_job_scores(db, result)
     if job_type == "cv_tailor":
         return _apply_cv_tailor(db, agent_job, result)
-    # cold_email wiring lands in Phase 13.
+    if job_type == "cold_email":
+        return _apply_cold_email(db, agent_job, result)
     return job_type
+
+
+def _apply_cold_email(db: Session, agent_job: AgentJob, result: dict) -> str:
+    app_id = agent_job.reference_id
+    if app_id is None:
+        return "cold_email:no_reference"
+
+    strategy = result.get("strategy")
+    personalization = {"notes": result.get("personalization_notes") or []}
+
+    upserted = 0
+    for email_type in ("initial", "follow_up_1", "follow_up_2"):
+        payload = result.get(email_type)
+        if not isinstance(payload, dict):
+            continue
+        subject = payload.get("subject") or ""
+        body = payload.get("body") or ""
+        if not body:
+            continue
+
+        existing = (
+            db.query(EmailDraft)
+            .filter(
+                EmailDraft.application_id == app_id,
+                EmailDraft.email_type == email_type,
+            )
+            .one_or_none()
+        )
+        if existing is None:
+            db.add(
+                EmailDraft(
+                    application_id=app_id,
+                    email_type=email_type,
+                    subject=subject,
+                    body=body,
+                    strategy=strategy,
+                    personalization=personalization,
+                    status="draft",
+                )
+            )
+        else:
+            existing.subject = subject
+            existing.body = body
+            existing.strategy = strategy
+            existing.personalization = personalization
+            existing.status = "draft"
+        upserted += 1
+
+    return f"cold_email:{upserted}"
 
 
 def _apply_cv_tailor(db: Session, agent_job: AgentJob, result: dict) -> str:
@@ -207,7 +258,46 @@ def _build_context_payload(db: Session, agent_job: AgentJob) -> dict:
     if job_type == "cv_tailor":
         return _cv_tailor_context(db, agent_job.reference_id)
 
+    if job_type == "cold_email":
+        return _cold_email_context(db, agent_job.reference_id)
+
     return {}
+
+
+def _cold_email_context(db: Session, application_id: int | None) -> dict:
+    if application_id is None:
+        return {"application_id": None, "error": "agent_job.reference_id is null"}
+
+    application = db.get(Application, application_id)
+    if application is None:
+        return {"application_id": application_id, "error": "application not found"}
+
+    job = db.get(ScrapedJob, application.job_id) if application.job_id else None
+    company = db.get(Company, application.company_id) if application.company_id else None
+    # Derive variant from the associated generated_cv, fall back to the
+    # scraped_job's suggested_variant.
+    variant_used: str | None = None
+    gen_cv = (
+        db.query(GeneratedCV)
+        .filter(GeneratedCV.application_id == application_id)
+        .order_by(GeneratedCV.id.desc())
+        .first()
+    )
+    if gen_cv and gen_cv.variant_used and gen_cv.variant_used != "no_match":
+        variant_used = gen_cv.variant_used
+    elif job and job.suggested_variant:
+        variant_used = job.suggested_variant
+
+    master = _active_master_cv(db)
+    master_summary = (master.content or {}).get("basics", {}) if master else None
+
+    return {
+        "application_id": application_id,
+        "job": _job_as_context(job) if job else None,
+        "company": _company_as_context(company) if company else None,
+        "master_cv_summary": master_summary,
+        "variant_used": variant_used,
+    }
 
 
 def _cv_tailor_context(db: Session, application_id: int | None) -> dict:

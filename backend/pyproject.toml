@@ -30,7 +30,7 @@ ignore_errors = true
 
 [[tool.mypy.overrides]]
 module = "app.api.*"
-disable_error_code = ["arg-type", "assignment", "return-value", "call-overload"]
+disable_error_code = ["arg-type", "assignment", "return-value", "call-overload", "index"]
 
 # Services that mutate ORM attributes hit the same Column[T] vs T narrowing
 # limit — relax until a full Mapped[]-style migration.

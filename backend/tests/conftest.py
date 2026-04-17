@@ -1,5 +1,9 @@
 import os
 
+# Disable the APScheduler before importing app.main so the FastAPI lifespan
+# doesn't spin up a real scheduler for every test session.
+os.environ.setdefault("JOBHUNTER_SCHEDULER_DISABLED", "1")
+
 import psycopg
 import pytest
 from fastapi.testclient import TestClient

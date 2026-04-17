@@ -1,3 +1,7 @@
+import logging
+import os
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -11,8 +15,30 @@ from app.api.enrichment import router as enrichment_router
 from app.api.jobs import router as jobs_router
 from app.api.portfolio import router as portfolio_router
 from app.api.scraper import router as scraper_router
+from app.scheduler import shutdown_scheduler, start_scheduler
 
-app = FastAPI(title="JobHunter API", version="0.1.0")
+log = logging.getLogger(__name__)
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    # JOBHUNTER_SCHEDULER_DISABLED=1 keeps the scheduler off in tests and
+    # ad-hoc scripts. Default (unset / 0) starts it.
+    if os.getenv("JOBHUNTER_SCHEDULER_DISABLED") in (None, "0", "false", "False"):
+        scheduler = start_scheduler()
+        _app.state.scheduler = scheduler
+    else:
+        _app.state.scheduler = None
+        log.info("scheduler disabled via JOBHUNTER_SCHEDULER_DISABLED")
+
+    try:
+        yield
+    finally:
+        if _app.state.scheduler is not None:
+            shutdown_scheduler(_app.state.scheduler)
+
+
+app = FastAPI(title="JobHunter API", version="0.1.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -42,3 +68,22 @@ app.include_router(scraper_router)
 @app.get("/health")
 def health():
     return {"status": "ok"}
+
+
+@app.get("/api/scheduler/status")
+def scheduler_status():
+    scheduler = getattr(app.state, "scheduler", None)
+    if scheduler is None:
+        return {"running": False, "jobs": []}
+    return {
+        "running": scheduler.running,
+        "jobs": [
+            {
+                "id": j.id,
+                "name": j.name,
+                "next_run_time": j.next_run_time.isoformat() if j.next_run_time else None,
+                "trigger": str(j.trigger),
+            }
+            for j in scheduler.get_jobs()
+        ],
+    }

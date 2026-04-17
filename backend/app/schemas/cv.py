@@ -109,3 +109,38 @@ class MasterCVResponse(BaseModel):
 class MasterCVUpdateRequest(BaseModel):
     content: MasterCVContent
     raw_markdown: str | None = None
+
+
+# --- generated CV (Phase 10) ---------------------------------------
+
+class CVGenerateRequest(BaseModel):
+    application_id: int
+
+
+class GeneratedCVResponse(BaseModel):
+    id: int
+    application_id: int | None
+    job_id: int | None
+    master_cv_id: int | None
+    tailored_markdown: str | None
+    variant_used: str | None
+    confidence: int | None
+    ats_score: int | None
+    keyword_matches: list[str] | None
+    missing_keywords: list[str] | None
+    suggestions: dict | None
+    status: str
+    docx_path: str | None
+    pdf_path: str | None
+
+    model_config = {"from_attributes": True}
+
+
+class GeneratedCVUpdate(BaseModel):
+    tailored_markdown: str | None = None
+
+
+class CVGenerateEnqueued(BaseModel):
+    generated_cv_id: int
+    agent_job_id: int
+    status: str

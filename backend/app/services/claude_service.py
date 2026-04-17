@@ -29,8 +29,10 @@ def spawn_claude(
     job_type: str,
     extra_args: list[str] | None = None,
     model_used: str | None = None,
-    subprocess_runner=subprocess.Popen,  # injected in tests
+    subprocess_runner=None,  # lazily resolved so monkeypatch(subprocess.Popen) works
 ) -> AgentJob:
+    if subprocess_runner is None:
+        subprocess_runner = subprocess.Popen
     """Start a Claude CLI skill in the background, return the AgentJob row.
 
     The subprocess receives `--api-url`, `--api-token`, and `--job-id` as

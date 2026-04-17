@@ -14,7 +14,9 @@ from sqlalchemy.orm import Session
 from app.config import settings
 from app.database import get_db
 from app.models.agent_job import AgentJob
-from app.models.cv import MasterCV
+from app.models.application import Application
+from app.models.company import Company
+from app.models.cv import GeneratedCV, MasterCV
 from app.models.job import ScrapedJob
 from app.models.portfolio_asset import PortfolioAsset
 from app.schemas.callbacks import (
@@ -114,8 +116,47 @@ def _dispatch_success(db: Session, agent_job: AgentJob, result: dict) -> str:
     job_type = agent_job.job_type
     if job_type == "job_score":
         return _apply_job_scores(db, result)
-    # cv_tailor / cold_email wiring lands in Phase 10 / 13.
+    if job_type == "cv_tailor":
+        return _apply_cv_tailor(db, agent_job, result)
+    # cold_email wiring lands in Phase 13.
     return job_type
+
+
+def _apply_cv_tailor(db: Session, agent_job: AgentJob, result: dict) -> str:
+    app_id = agent_job.reference_id
+    if app_id is None:
+        return "cv_tailor:no_reference"
+
+    row = (
+        db.query(GeneratedCV)
+        .filter(GeneratedCV.application_id == app_id)
+        .order_by(GeneratedCV.id.desc())
+        .first()
+    )
+    if row is None:
+        log.warning("cv_tailor complete callback for app_id=%s with no generated_cvs row", app_id)
+        return "cv_tailor:orphan"
+
+    variant = result.get("variant_used")
+    if variant == "no_match":
+        row.status = "no_match"
+        row.variant_used = variant
+        row.suggestions = {"rejected_reason": result.get("rejected_keywords_reason")}
+        return "cv_tailor:no_match"
+
+    row.tailored_markdown = result.get("tailored_markdown") or ""
+    row.tailored_json = result.get("tailored_json") or {}
+    row.variant_used = variant
+    confidence = result.get("confidence")
+    if isinstance(confidence, int | float):
+        row.confidence = int(float(confidence) * 100) if confidence <= 1 else int(confidence)
+    row.keyword_matches = list(result.get("keyword_matches") or [])
+    row.missing_keywords = list(result.get("missing_keywords") or [])
+    row.suggestions = {
+        "selected_portfolio_ids": result.get("selected_portfolio_ids"),
+    }
+    row.status = "ready"
+    return f"cv_tailor:ready ({variant})"
 
 
 def _apply_job_scores(db: Session, result: dict) -> str:
@@ -164,15 +205,41 @@ def _build_context_payload(db: Session, agent_job: AgentJob) -> dict:
         }
 
     if job_type == "cv_tailor":
-        app_id = agent_job.reference_id
-        # Phase 10 populates this; stub now returns minimal context.
-        return {
-            "application_id": app_id,
-            "master_cv": _master_cv_content(db),
-            "portfolio_assets": _published_portfolio(db),
-        }
+        return _cv_tailor_context(db, agent_job.reference_id)
 
     return {}
+
+
+def _cv_tailor_context(db: Session, application_id: int | None) -> dict:
+    if application_id is None:
+        return {"application_id": None, "error": "agent_job.reference_id is null"}
+
+    application = db.get(Application, application_id)
+    if application is None:
+        return {"application_id": application_id, "error": "application not found"}
+
+    job = db.get(ScrapedJob, application.job_id) if application.job_id else None
+    company = db.get(Company, application.company_id) if application.company_id else None
+
+    return {
+        "application_id": application_id,
+        "master_cv": _master_cv_content(db),
+        "job": _job_as_context(job) if job else None,
+        "company": _company_as_context(company) if company else None,
+        "portfolio_assets": _published_portfolio(db),
+    }
+
+
+def _company_as_context(company: Company) -> dict:
+    meta: dict = dict(company.metadata_ or {})
+    return {
+        "id": company.id,
+        "name": company.name,
+        "domain": company.domain,
+        "industry": company.industry,
+        "description": company.description,
+        "enriched_context": meta.get("enriched_context"),
+    }
 
 
 def _active_master_cv(db: Session) -> MasterCV | None:

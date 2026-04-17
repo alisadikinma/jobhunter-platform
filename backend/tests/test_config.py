@@ -45,4 +45,4 @@ def test_settings_accepts_valid_fernet_key():
 
     key = Fernet.generate_key().decode()
     s = Settings(ENV="dev", APIFY_FERNET_KEY=key, _env_file=None)
-    assert s.APIFY_FERNET_KEY == key
+    assert key == s.APIFY_FERNET_KEY

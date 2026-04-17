@@ -1,0 +1,9 @@
+-r requirements.txt
+
+# Real-Postgres integration tests (JSONB/ARRAY round-trips)
+pytest-postgresql>=6.0
+psycopg[binary]>=3.2
+
+# Lint + typecheck
+ruff>=0.7
+mypy>=1.11

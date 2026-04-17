@@ -1,0 +1,40 @@
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+extend-exclude = [".venv", "alembic/versions"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM", "RUF"]
+ignore = [
+    "E501",   # line length handled by formatter
+    "B008",   # FastAPI Depends() in defaults is idiomatic
+    "RUF012", # mutable class attrs on SQLAlchemy models
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["B011"]
+
+[tool.mypy]
+python_version = "3.12"
+ignore_missing_imports = true
+check_untyped_defs = true
+warn_redundant_casts = true
+exclude = ["alembic/", ".venv/", "tests/"]
+
+# SQLAlchemy classical mapping (Column(...)) surfaces as Column[T] not T, so
+# mypy can't narrow ORM attribute access. We skip models/* entirely and relax
+# api/* until the codebase migrates to Mapped[]-style declarations.
+[[tool.mypy.overrides]]
+module = "app.models.*"
+ignore_errors = true
+
+[[tool.mypy.overrides]]
+module = "app.api.*"
+disable_error_code = ["arg-type"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra --strict-markers"
+markers = [
+    "integration: real-Postgres integration tests (require running DB)",
+]

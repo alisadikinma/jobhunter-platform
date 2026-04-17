@@ -1,14 +1,14 @@
 def test_all_models_importable():
-    from app.models.user import User
-    from app.models.company import Company
-    from app.models.job import ScrapedJob
-    from app.models.application import Application, ApplicationActivity
-    from app.models.cv import MasterCV, GeneratedCV, CoverLetter
-    from app.models.email_draft import EmailDraft
-    from app.models.scrape_config import ScrapeConfig
     from app.models.agent_job import AgentJob
     from app.models.apify_account import ApifyAccount, ApifyUsageLog
+    from app.models.application import Application, ApplicationActivity
+    from app.models.company import Company
+    from app.models.cv import CoverLetter, GeneratedCV, MasterCV
+    from app.models.email_draft import EmailDraft
+    from app.models.job import ScrapedJob
     from app.models.portfolio_asset import PortfolioAsset
+    from app.models.scrape_config import ScrapeConfig
+    from app.models.user import User
 
     assert User.__tablename__ == "users"
     assert Company.__tablename__ == "companies"

@@ -1,4 +1,4 @@
-.PHONY: dev-backend dev-frontend db-up db-down db-migrate db-revision test-backend test-frontend scrape-run build up down logs
+.PHONY: dev-backend dev-frontend db-up db-down db-migrate db-revision test-backend test-frontend lint typecheck scrape-run build up down logs
 
 # Development
 dev-backend:
@@ -26,6 +26,13 @@ test-backend:
 
 test-frontend:
 	cd frontend && npm test
+
+# Lint + typecheck (same commands CI runs)
+lint:
+	cd backend && .venv/Scripts/ruff check app/ tests/
+
+typecheck:
+	cd backend && .venv/Scripts/mypy app/
 
 # Scraping
 scrape-run:

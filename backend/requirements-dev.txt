@@ -4,6 +4,9 @@
 pytest-postgresql>=6.0
 psycopg[binary]>=3.2
 
+# HTTP mocking for scraper tests
+respx>=0.21
+
 # Lint + typecheck
 ruff>=0.7
 mypy>=1.11

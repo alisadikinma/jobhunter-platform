@@ -14,6 +14,8 @@ class Settings(BaseSettings):
 
     APIFY_FERNET_KEY: str = ""
     APIFY_LINKEDIN_ENABLED: bool = False
+    APIFY_WELLFOUND_ACTOR: str = "bebity/wellfound-jobs-scraper"
+    APIFY_LINKEDIN_ACTOR: str = "bebity/linkedin-jobs-scraper"
 
     ADZUNA_APP_ID: str = ""
     ADZUNA_APP_KEY: str = ""

@@ -32,6 +32,12 @@ ignore_errors = true
 module = "app.api.*"
 disable_error_code = ["arg-type"]
 
+# Services that mutate ORM attributes hit the same Column[T] vs T narrowing
+# limit — relax until a full Mapped[]-style migration.
+[[tool.mypy.overrides]]
+module = "app.services.apify_pool"
+disable_error_code = ["assignment", "attr-defined"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-ra --strict-markers"

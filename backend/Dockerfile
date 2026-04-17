@@ -44,4 +44,7 @@ ENV AGENT_JOB_LOG_DIR=/tmp/jobhunter_agent_jobs
 
 EXPOSE 8000
 ENTRYPOINT ["tini", "--"]
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2"]
+# Single worker: APScheduler runs in-process, so multiple workers would
+# duplicate every cron-triggered scrape. docker-compose.yml override keeps
+# the same worker count for prod.
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]

@@ -81,6 +81,19 @@ def test_aggregate_skips_unknown_source():
     assert all(j.source == "arbeitnow" for j in jobs)
 
 
+def test_registry_includes_jobspy():
+    """Regression: Phase 22 review caught jobspy missing — migration 004
+    seeds 'jobspy' as a source, so aggregate() must recognise it."""
+    from app.scrapers.aggregator import APIFY_GATED_SOURCES, SCRAPER_REGISTRY
+    from app.scrapers.jobspy_scraper import JobSpyScraper
+
+    assert SCRAPER_REGISTRY["jobspy"] is JobSpyScraper
+    # Apify-gated sources live outside the free registry — they need the pool.
+    assert "wellfound" in APIFY_GATED_SOURCES
+    assert "linkedin_apify" in APIFY_GATED_SOURCES
+    assert "wellfound" not in SCRAPER_REGISTRY
+
+
 @respx.mock
 def test_aggregate_skips_disabled_scraper_gracefully(monkeypatch):
     from app.config import settings

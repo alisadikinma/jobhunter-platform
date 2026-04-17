@@ -13,21 +13,31 @@ from app.scrapers.arbeitnow import ArbeitnowScraper
 from app.scrapers.base import BaseScraper, ScraperDisabled
 from app.scrapers.hiring_cafe import HiringCafeScraper
 from app.scrapers.hn_algolia import HnAlgoliaScraper
+from app.scrapers.jobspy_scraper import JobSpyScraper
 from app.scrapers.remoteok import RemoteOKScraper
 from app.utils.deduplicator import content_hash
 
 log = logging.getLogger(__name__)
 
 
-# source id -> factory. Keeping this explicit (not a registry decorator)
-# because the ~5 sources aren't worth the indirection.
+# source id → no-auth scraper class. JobSpy is here because it reaches
+# LinkedIn/Indeed/Glassdoor directly without an Apify account.
+#
+# Sources that need an Apify pool account (wellfound, linkedin_apify) are
+# NOT in this registry — scraper_service routes them through the pool
+# because they require a DB session to acquire + record credit.
 SCRAPER_REGISTRY: dict[str, type[BaseScraper]] = {
     "remoteok": RemoteOKScraper,
     "hn_algolia": HnAlgoliaScraper,
     "arbeitnow": ArbeitnowScraper,
     "adzuna": AdzunaScraper,
     "hiring_cafe": HiringCafeScraper,
+    "jobspy": JobSpyScraper,
 }
+
+
+# Sources routed through scraper_service._run_apify_sources (need DB + pool).
+APIFY_GATED_SOURCES: frozenset[str] = frozenset({"wellfound", "linkedin_apify"})
 
 
 def aggregate(

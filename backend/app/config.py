@@ -35,8 +35,9 @@ class Settings(BaseSettings):
     FIRECRAWL_TIMEOUT_S: int = 60
 
     # Comma-separated list of directories scanned by the portfolio auditor.
-    # Each subdir with a CLAUDE.md becomes a draft asset.
-    PORTFOLIO_SCAN_PATHS: str = "~/.claude/plugins/cache,D:/Projects"
+    # Each subdir with a CLAUDE.md becomes a draft asset. Override via
+    # env per-host (Linux VPS has no D:/ drive).
+    PORTFOLIO_SCAN_PATHS: str = "~/.claude/plugins/cache"
 
     ADMIN_EMAIL: str = "admin@example.com"
     ADMIN_PASSWORD: str = "change-me"
@@ -61,6 +62,11 @@ class Settings(BaseSettings):
             raise ValueError("JWT_SECRET must be at least 32 bytes when ENV != 'dev' (RFC 7518 §3.2)")
         if self.ADMIN_PASSWORD == "change-me":
             raise ValueError("ADMIN_PASSWORD must be set to a real value when ENV != 'dev'")
+        if self.CALLBACK_SECRET and len(self.CALLBACK_SECRET.encode("utf-8")) < 32:
+            raise ValueError(
+                "CALLBACK_SECRET must be at least 32 bytes when ENV != 'dev' "
+                "(same threshold as JWT_SECRET)"
+            )
         return self
 
 

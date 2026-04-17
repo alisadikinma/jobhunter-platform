@@ -46,3 +46,25 @@ def test_settings_accepts_valid_fernet_key():
     key = Fernet.generate_key().decode()
     s = Settings(ENV="dev", APIFY_FERNET_KEY=key, _env_file=None)
     assert key == s.APIFY_FERNET_KEY
+
+
+def test_settings_rejects_short_callback_secret_outside_dev():
+    with pytest.raises(ValidationError, match="CALLBACK_SECRET"):
+        Settings(
+            ENV="prod",
+            JWT_SECRET="a" * 32,
+            ADMIN_PASSWORD="real",
+            CALLBACK_SECRET="short",
+            _env_file=None,
+        )
+
+
+def test_settings_accepts_long_callback_secret_outside_dev():
+    s = Settings(
+        ENV="prod",
+        JWT_SECRET="a" * 32,
+        ADMIN_PASSWORD="real",
+        CALLBACK_SECRET="b" * 32,
+        _env_file=None,
+    )
+    assert len(s.CALLBACK_SECRET) == 32

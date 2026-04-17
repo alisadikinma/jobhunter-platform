@@ -86,10 +86,15 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    # Single worker is required — the in-process APScheduler would otherwise
+    # fire the 3-hourly scrape jobs once per worker. For MVP traffic a single
+    # worker handles admin load fine; scale with a dedicated scheduler
+    # service (separate container or external cron) if HTTP throughput
+    # becomes a bottleneck.
     command: >
       sh -c "alembic upgrade head
              && python scripts/seed_admin.py
-             && uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 2"
+             && uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 1"
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.jobhunter-api.rule=Host(`jobs.alisadikinma.com`) && PathPrefix(`/api`)"

@@ -177,6 +177,65 @@ def test_run_409_for_inactive_config(api):
     assert client.post("/api/scraper/run", json={"config_id": cfg_id}).status_code == 409
 
 
+def test_run_config_includes_apify_gated_source(api, pg_engine, monkeypatch):
+    """Regression: wellfound/linkedin_apify sources route through the pool.
+
+    The aggregator registry deliberately doesn't include them; the service
+    loop does.
+    """
+    from decimal import Decimal
+
+    from cryptography.fernet import Fernet
+
+    from app.models.apify_account import ApifyAccount
+    from app.schemas.scraper import NormalizedJob
+
+    # Seed a valid Fernet key + one active account so acquire_account() works.
+    monkeypatch.setattr(
+        "app.config.settings.APIFY_FERNET_KEY",
+        Fernet.generate_key().decode(),
+    )
+
+    client, SL = api
+    with SL() as s:
+        from app.services.encryption import encrypt_token
+        s.add(ApifyAccount(
+            label="test", email="t@x.com", api_token=encrypt_token("dummy"),
+            status="active", monthly_credit_usd=Decimal("5.00"),
+            credit_used_usd=Decimal("0"), priority=10,
+        ))
+        cfg = ScrapeConfig(
+            name="Vibe-Wellfound", variant_target="vibe_coding",
+            keywords=["AI"], sources=["wellfound", "remoteok"],
+        )
+        s.add(cfg)
+        s.commit()
+        cfg_id = cfg.id
+
+    # Mock the free-source aggregator + the wellfound scraper separately.
+    apify_job = NormalizedJob(
+        source="wellfound", title="WF Role", company_name="AcmeWF",
+        description="Build things",
+    )
+    free_job = NormalizedJob(
+        source="remoteok", title="RO Role", company_name="AcmeRO",
+        description="Build other things",
+    )
+
+    from unittest.mock import MagicMock
+
+    wellfound_mock = MagicMock()
+    wellfound_mock.scrape.return_value = [apify_job]
+    with patch("app.services.scraper_service.aggregate", return_value=[free_job]), \
+         patch("app.services.scraper_service.WellfoundApifyScraper", return_value=wellfound_mock):
+        r = client.post("/api/scraper/run", json={"config_id": cfg_id})
+
+    assert r.status_code == 200
+    body = r.json()
+    assert body["new_jobs"] == 2
+    assert wellfound_mock.scrape.called
+
+
 def test_status_endpoint_lists_configs(api):
     client, SL = api
     with SL() as s:

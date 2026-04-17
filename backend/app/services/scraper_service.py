@@ -10,7 +10,10 @@ from app.models.job import ScrapedJob
 from app.models.scrape_config import ScrapeConfig
 from app.schemas.scrape_config import ScrapeRunResponse
 from app.schemas.scraper import NormalizedJob
-from app.scrapers.aggregator import aggregate
+from app.scrapers.aggregator import APIFY_GATED_SOURCES, aggregate
+from app.scrapers.linkedin_apify import LinkedInApifyScraper
+from app.scrapers.wellfound_apify import WellfoundApifyScraper
+from app.services.apify_pool import ApifyPoolExhausted, acquire_account, record_usage
 from app.utils.deduplicator import content_hash
 
 log = logging.getLogger(__name__)
@@ -19,25 +22,94 @@ log = logging.getLogger(__name__)
 def run_scrape_config(db: Session, config: ScrapeConfig) -> ScrapeRunResponse:
     """Run one scrape_config: aggregate sources, dedup vs DB, insert new jobs.
 
-    Updates config.last_run_at and config.last_run_results.
+    Updates config.last_run_at and config.last_run_results. Apify-gated
+    sources (wellfound, linkedin_apify) are routed through the Apify pool
+    so each run acquires a credit-tracked account.
     """
     keywords = list(config.keywords or [])
-    sources = list(config.sources or [])
+    requested = list(config.sources or [])
     locations = list(config.locations or [])
     limit = config.max_results_per_source or 30
     variant = config.variant_target
 
-    normalized = aggregate(
+    free_sources = [s for s in requested if s not in APIFY_GATED_SOURCES]
+    apify_sources = [s for s in requested if s in APIFY_GATED_SOURCES]
+
+    normalized = list(aggregate(
         keywords=keywords,
-        sources=sources,
+        sources=free_sources,
         locations=locations or None,
         limit_per_source=limit,
-    )
+    ))
+
+    for source_id in apify_sources:
+        more = _run_apify_source(
+            db,
+            source_id=source_id,
+            keywords=keywords,
+            locations=locations or None,
+            limit=limit,
+        )
+        normalized.extend(more)
 
     stats = _persist(db, normalized, variant_target=variant)
     _record_run(db, config, stats)
     db.commit()
     return stats
+
+
+def _run_apify_source(
+    db: Session,
+    *,
+    source_id: str,
+    keywords: list[str],
+    locations: list[str] | None,
+    limit: int,
+) -> list[NormalizedJob]:
+    """Acquire a pool account, run the Apify-based scraper, record usage.
+
+    Never propagates exceptions — returns [] on any failure so the batch
+    keeps running. Estimated cost per run is conservative ($0.15 reserve).
+    """
+    try:
+        account = acquire_account(db, estimated_cost_usd=0.15)
+    except ApifyPoolExhausted as e:
+        log.warning("apify pool exhausted for %s: %s", source_id, e)
+        return []
+
+    scraper_cls = (
+        WellfoundApifyScraper
+        if source_id == "wellfound"
+        else LinkedInApifyScraper
+    )
+
+    started = datetime.now(UTC)
+    status = "success"
+    jobs: list[NormalizedJob] = []
+    error_message: str | None = None
+
+    try:
+        scraper = scraper_cls(account.api_token)
+        jobs = scraper.scrape(keywords=keywords, locations=locations, limit=limit)
+    except Exception as e:
+        log.exception("apify scraper %s failed: %s", source_id, e)
+        status = "failure"
+        error_message = str(e)
+
+    duration_ms = int((datetime.now(UTC) - started).total_seconds() * 1000)
+    # Conservative cost estimate: $0.10 per 100 jobs; min $0.02 per attempt.
+    cost = max(0.02, 0.10 * (len(jobs) / 100))
+    record_usage(
+        db,
+        account.id,
+        cost_usd=cost,
+        jobs_scraped=len(jobs),
+        status=status,
+        actor_id=source_id,
+        duration_ms=duration_ms,
+        error_message=error_message,
+    )
+    return jobs
 
 
 def run_ad_hoc(

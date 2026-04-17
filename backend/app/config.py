@@ -15,6 +15,8 @@ class Settings(BaseSettings):
     CALLBACK_SECRET: str = ""  # shared token for Claude CLI -> FastAPI callbacks
     CALLBACK_API_URL: str = "http://localhost:8000"  # how the subprocess reaches us
     AGENT_JOB_LOG_DIR: str = "/tmp/jobhunter_agent_jobs"
+    CV_STORAGE_DIR: str = "storage/cvs"  # rendered DOCX/PDF artifacts
+    CV_REFERENCE_DOCX: str = ""  # optional Pandoc reference template path
 
     APIFY_FERNET_KEY: str = ""
     APIFY_LINKEDIN_ENABLED: bool = False

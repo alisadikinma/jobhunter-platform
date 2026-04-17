@@ -25,6 +25,8 @@ class Settings(BaseSettings):
     PROXY_PASSWORD: str = ""
 
     FIRECRAWL_API_URL: str = "http://firecrawl-api:3002"
+    FIRECRAWL_API_KEY: str = ""  # optional; self-hosted typically needs none
+    FIRECRAWL_TIMEOUT_S: int = 60
 
     ADMIN_EMAIL: str = "admin@example.com"
     ADMIN_PASSWORD: str = "change-me"

@@ -36,7 +36,7 @@ disable_error_code = ["arg-type", "assignment", "return-value", "call-overload"]
 # limit — relax until a full Mapped[]-style migration.
 [[tool.mypy.overrides]]
 module = "app.services.*"
-disable_error_code = ["assignment", "attr-defined", "arg-type"]
+disable_error_code = ["assignment", "attr-defined", "arg-type", "call-overload"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

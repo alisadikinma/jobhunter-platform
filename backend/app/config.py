@@ -32,6 +32,10 @@ class Settings(BaseSettings):
     FIRECRAWL_API_KEY: str = ""  # optional; self-hosted typically needs none
     FIRECRAWL_TIMEOUT_S: int = 60
 
+    # Comma-separated list of directories scanned by the portfolio auditor.
+    # Each subdir with a CLAUDE.md becomes a draft asset.
+    PORTFOLIO_SCAN_PATHS: str = "~/.claude/plugins/cache,D:/Projects"
+
     ADMIN_EMAIL: str = "admin@example.com"
     ADMIN_PASSWORD: str = "change-me"
 

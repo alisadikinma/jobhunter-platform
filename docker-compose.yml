@@ -129,8 +129,14 @@ services:
       - "traefik.http.routers.jobhunter-web.entrypoints=websecure"
       - "traefik.http.routers.jobhunter-web.tls.certresolver=letsencrypt"
       - "traefik.http.services.jobhunter-web.loadbalancer.server.port=3000"
-      - "traefik.http.routers.jobhunter-web.priority=1"
-      - "traefik.http.routers.jobhunter-api.priority=10"
+      # No explicit priority — Traefik auto-computes by rule length.
+      # `Host(...) && PathPrefix(/api)` (api router) is longer/more specific
+      # than `Host(...)` (this catchall) so /api/* naturally hits api first.
+      # The previous explicit `priority=1` here forced this catchall to lose
+      # only against rules with priority>1, but was being applied alongside
+      # a misplaced `jobhunter-api.priority=10` label that scoped to the
+      # wrong container — confusing Traefik's docker provider into routing
+      # /api/* to this frontend.
     restart: unless-stopped
 
 volumes:

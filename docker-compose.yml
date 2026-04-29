@@ -105,6 +105,10 @@ services:
       - alembic upgrade head && python scripts/seed_admin.py && uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 1
     labels:
       - "traefik.enable=true"
+      # Force Traefik to use the `proxy` network (where it lives) for service
+      # discovery — without this, multi-network containers can resolve to
+      # the internal `jobhunter` network IP, which Traefik can't reach.
+      - "traefik.docker.network=proxy"
       - "traefik.http.routers.jobhunter-api.rule=Host(`jobs.alisadikinma.com`) && PathPrefix(`/api`)"
       - "traefik.http.routers.jobhunter-api.entrypoints=websecure"
       - "traefik.http.routers.jobhunter-api.tls.certresolver=letsencrypt"
@@ -125,6 +129,7 @@ services:
       - api
     labels:
       - "traefik.enable=true"
+      - "traefik.docker.network=proxy"
       - "traefik.http.routers.jobhunter-web.rule=Host(`jobs.alisadikinma.com`)"
       - "traefik.http.routers.jobhunter-web.entrypoints=websecure"
       - "traefik.http.routers.jobhunter-web.tls.certresolver=letsencrypt"

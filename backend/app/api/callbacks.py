@@ -125,6 +125,8 @@ def _dispatch_success(db: Session, agent_job: AgentJob, result: dict) -> str:
 
 
 def _apply_cold_email(db: Session, agent_job: AgentJob, result: dict) -> str:
+    from app.services import mailer_service
+
     app_id = agent_job.reference_id
     if app_id is None:
         return "cold_email:no_reference"
@@ -132,7 +134,13 @@ def _apply_cold_email(db: Session, agent_job: AgentJob, result: dict) -> str:
     strategy = result.get("strategy")
     personalization = {"notes": result.get("personalization_notes") or []}
 
+    application = db.get(Application, app_id) if app_id else None
+    contact_email = application.contact_email if application else None
+    contact_name = application.contact_name if application else None
+
     upserted = 0
+    initial_draft_record: dict[str, str] | None = None
+
     for email_type in ("initial", "follow_up_1", "follow_up_2"):
         payload = result.get(email_type)
         if not isinstance(payload, dict):
@@ -151,26 +159,52 @@ def _apply_cold_email(db: Session, agent_job: AgentJob, result: dict) -> str:
             .one_or_none()
         )
         if existing is None:
-            db.add(
-                EmailDraft(
-                    application_id=app_id,
-                    email_type=email_type,
-                    subject=subject,
-                    body=body,
-                    strategy=strategy,
-                    personalization=personalization,
-                    status="draft",
-                )
+            row = EmailDraft(
+                application_id=app_id,
+                email_type=email_type,
+                subject=subject,
+                body=body,
+                strategy=strategy,
+                personalization=personalization,
+                status="draft",
             )
+            db.add(row)
         else:
             existing.subject = subject
             existing.body = body
             existing.strategy = strategy
             existing.personalization = personalization
             existing.status = "draft"
+            row = existing
         upserted += 1
 
-    return f"cold_email:{upserted}"
+        # Push the *initial* email into the IMAP Drafts folder so the user
+        # can review + send from their mail client. Follow-ups stay
+        # DB-only — they're scheduled, not human-reviewed at this step.
+        if email_type == "initial" and contact_email:
+            try:
+                ack = mailer_service.append_draft(
+                    mailer_service.MailMessage(
+                        to_email=contact_email,
+                        to_name=contact_name,
+                        subject=subject,
+                        body_text=body,
+                    ),
+                    db=db,
+                )
+                row.imap_uid = ack.get("uid") or None
+                row.imap_message_id = ack.get("message_id") or None
+                row.imap_folder = ack.get("folder") or None
+                initial_draft_record = ack
+            except mailer_service.MailerDisabled:
+                log.info("mailer disabled — skipping IMAP draft append for app=%s", app_id)
+            except mailer_service.MailerError as e:
+                log.warning("IMAP draft append failed for app=%s: %s", app_id, e)
+
+    suffix = ""
+    if initial_draft_record:
+        suffix = f" imap_uid={initial_draft_record.get('uid')}"
+    return f"cold_email:{upserted}{suffix}"
 
 
 def _apply_cv_tailor(db: Session, agent_job: AgentJob, result: dict) -> str:

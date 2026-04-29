@@ -280,6 +280,20 @@ before you go deeper.
   dev — without it `apify_pool.encrypt`/`decrypt` raise on the first DB read.
   Generate via
   `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"`.
+  Same key encrypts the singleton `mailbox_config.password_encrypted` row.
+- **Mailbox creds live in the DB**, not `.env` (managed via
+  `/settings/credentials` UI). `.env` `MAIL_*` keys are only a bootstrap
+  fallback before the user opens the form. Source of truth:
+  `mailbox_config` singleton row id=1.
+- **Hostinger / Dovecot Drafts folder is `INBOX.Drafts`, not `Drafts`.**
+  Bare `Drafts` returns `NO [TRYCREATE] nonexistent namespace`. Different
+  providers use different prefixes — Gmail = `[Gmail]/Drafts`, iCloud =
+  `Drafts`, Migadu = `Drafts`. The mailbox config form has a hint;
+  default value in `.env.example` is `INBOX.Drafts` to bias toward
+  Hostinger / cPanel users.
+- **APPENDUID parser must strip `]` glued to the digit.** Hostinger emits
+  `APPENDUID 12345 1]` not `[APPENDUID 12345 1]` after split — first
+  attempt returned uid `1]`. Fixed in `mailer_service._parse_appenduid`.
 - **Firecrawl is opt-in via `--profile firecrawl`.** The two services
   (`firecrawl-api`, `firecrawl-worker`) are profile-gated in
   `docker-compose.yml` because the upstream image is large and not everyone

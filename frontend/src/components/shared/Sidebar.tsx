@@ -5,6 +5,7 @@ import {
   Building2,
   FileText,
   KanbanSquare,
+  KeyRound,
   LayoutDashboard,
   LogOut,
   Mail,
@@ -23,7 +24,7 @@ const NAV = [
   { href: "/cv", label: "CV", icon: FileText },
   { href: "/emails", label: "Emails", icon: Mail },
   { href: "/portfolio", label: "Portfolio", icon: Building2 },
-  { href: "/apify-pool", label: "Apify Pool", icon: Building2 },
+  { href: "/settings/credentials", label: "Credentials", icon: KeyRound },
   { href: "/settings", label: "Settings", icon: Settings },
 ] as const;
 
@@ -40,7 +41,13 @@ export function Sidebar() {
       </div>
       <nav className="flex-1 space-y-0.5 px-2">
         {NAV.map((item) => {
-          const active = pathname === item.href || pathname.startsWith(item.href + "/");
+          // Match the deepest-matching href so /settings/credentials doesn't
+          // also highlight the parent /settings entry.
+          const matches = NAV.filter(
+            (n) => pathname === n.href || pathname.startsWith(n.href + "/"),
+          );
+          const deepest = matches.sort((a, b) => b.href.length - a.href.length)[0];
+          const active = deepest?.href === item.href;
           const Icon = item.icon;
           return (
             <Link

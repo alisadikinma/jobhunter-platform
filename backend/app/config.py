@@ -23,6 +23,18 @@ class Settings(BaseSettings):
     APIFY_WELLFOUND_ACTOR: str = "bebity/wellfound-jobs-scraper"
     APIFY_LINKEDIN_ACTOR: str = "bebity/linkedin-jobs-scraper"
 
+    # Custom-domain mailbox (Hostinger / Migadu / Fastmail / iCloud+ etc.).
+    # Empty = mailer disabled; cold-email skill falls back to draft-only-in-DB.
+    MAIL_SMTP_HOST: str = ""
+    MAIL_SMTP_PORT: int = 465
+    MAIL_IMAP_HOST: str = ""
+    MAIL_IMAP_PORT: int = 993
+    MAIL_USERNAME: str = ""
+    MAIL_PASSWORD: str = ""
+    MAIL_FROM_ADDRESS: str = ""
+    MAIL_FROM_NAME: str = ""
+    MAIL_DRAFTS_FOLDER: str = "Drafts"
+
     ADZUNA_APP_ID: str = ""
     ADZUNA_APP_KEY: str = ""
 

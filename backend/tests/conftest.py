@@ -85,6 +85,7 @@ def pg_engine(postgresql):
     import app.models.cv
     import app.models.email_draft
     import app.models.job
+    import app.models.mailbox
     import app.models.portfolio_asset
     import app.models.scrape_config
     import app.models.user  # noqa: F401

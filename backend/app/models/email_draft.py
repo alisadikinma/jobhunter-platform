@@ -24,6 +24,11 @@ class EmailDraft(Base):
     status = Column(String(20), server_default="draft")
     sent_at = Column(DateTime(timezone=True))
 
+    # IMAP-pushed-draft trace for clickable "Open in Mail" UI links + audit.
+    imap_uid = Column(String(64))
+    imap_folder = Column(String(100))
+    imap_message_id = Column(String(255))
+
     model_used = Column(String(50))
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())

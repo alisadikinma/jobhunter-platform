@@ -80,8 +80,10 @@ services:
       - PROXY_PASSWORD=${PROXY_PASSWORD:-}
       - FIRECRAWL_API_URL=${FIRECRAWL_API_URL:-http://firecrawl-api:3002}
       - FIRECRAWL_API_KEY=${FIRECRAWL_API_KEY:-}
+    # claude-plugin/ no longer mounted — the Dockerfile clones the plugin
+    # repo (github.com/alisadikinma/jobhunter-plugin) at build time.
+    # Override JOBHUNTER_PLUGIN_REF build arg to pin a tag/branch.
     volumes:
-      - ./claude-plugin:/app/claude-plugin:ro
       - cv_storage:/app/storage/cvs
     depends_on:
       db:

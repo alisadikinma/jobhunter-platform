@@ -64,11 +64,6 @@ D:\Projects\jobhunter\
 │   ├── public/
 │   ├── package.json
 │   └── Dockerfile
-├── claude-plugin/               # Claude Code skills for job hunting
-│   ├── CLAUDE.md
-│   ├── skills/                  # job-score, cv-tailor, cold-email, company-research
-│   ├── refs/                    # refs-cv, refs-email, refs-scoring
-│   └── agents/                  # job-hunter batch agent
 ├── docs/
 │   ├── plans/                   # Implementation plans
 │   └── seed/                    # master-cv.template.json
@@ -79,6 +74,24 @@ D:\Projects\jobhunter\
 ├── CLAUDE.md                    # This file
 └── README.md
 ```
+
+## Companion plugin repo
+
+Claude skills (`/jobhunter:job-score`, `/jobhunter:cv-tailor`, `/jobhunter:cold-email`)
+live in their own repo: **https://github.com/alisadikinma/jobhunter-plugin**.
+
+- **Local dev:** `make plugin-init` clones it to `../claude-plugin/jobhunter-plugin`
+  (sibling of this repo). Point `CLAUDE_PLUGIN_PATH` in `.env` at the absolute
+  path of the clone.
+- **Production:** `backend/Dockerfile` clones the plugin during build via the
+  `JOBHUNTER_PLUGIN_REF` build arg (default `main`; pin to a tag for
+  deterministic deploys).
+- **VPS Claude CLI invocations:** `claude --plugin-dir <path> -p "/jobhunter:..."`
+  works once `--plugin-dir` points at the clone.
+- **Adding skills:** any complex AI / orchestration task should go into the
+  plugin (not the FastAPI backend). The backend stays minimal — scraping,
+  storage, kanban, Jaccard ATS. Anything Claude-driven lives in the plugin
+  so it can be processed by VPS Claude CLI without a backend redeploy.
 
 ## Key Commands
 

@@ -63,6 +63,7 @@ on boot.
 - **23-phase build plan**: [docs/plans/2026-04-15-jobhunter-mvp-design.md](docs/plans/2026-04-15-jobhunter-mvp-design.md)
 - **Project memory**: [CLAUDE.md](CLAUDE.md) — tech stack, conventions,
   architecture decisions (sync SQLAlchemy, PyJWT, TIMESTAMPTZ).
-- **Claude plugin**: [claude-plugin/](claude-plugin/) — skills
-  (`/job-score`, `/cv-tailor`, `/cold-email`) + refs + a plugin-level
-  CLAUDE.md describing the subprocess + callback contract.
+- **Claude plugin** (separate repo): https://github.com/alisadikinma/jobhunter-plugin —
+  skills (`/jobhunter:job-score`, `/jobhunter:cv-tailor`, `/jobhunter:cold-email`)
+  + refs + a plugin-level CLAUDE.md describing the subprocess + callback
+  contract. Run `make plugin-init` to clone it as a sibling for local dev.

@@ -112,7 +112,7 @@ def score_unscored(
     """Fire a /job-score skill against the batch of currently-unscored jobs.
 
     Returns the agent_job id so the caller can poll progress. The actual
-    scoring happens in a Claude CLI subprocess; see claude-plugin/skills/
+    scoring happens in a Claude CLI subprocess; see jobhunter-plugin skills/
     job-score.md for the contract.
     """
     agent_job = spawn_claude(

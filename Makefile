@@ -1,4 +1,24 @@
-.PHONY: dev-backend dev-frontend db-up db-down db-migrate db-revision test-backend test-frontend lint typecheck scrape-run build up down logs
+.PHONY: dev-backend dev-frontend db-up db-down db-migrate db-revision test-backend test-frontend lint typecheck scrape-run build up down logs plugin-init plugin-update
+
+# --- Plugin (lives in a separate repo so it can be installed via
+#     `claude /plugin marketplace add github.com/alisadikinma/jobhunter-plugin`).
+#     Local dev clones it as a sibling of this repo and points
+#     CLAUDE_PLUGIN_PATH at it via .env.
+PLUGIN_DIR ?= ../claude-plugin/jobhunter-plugin
+PLUGIN_REPO ?= https://github.com/alisadikinma/jobhunter-plugin.git
+
+plugin-init:
+	@if [ -d "$(PLUGIN_DIR)/.git" ]; then \
+	  echo "plugin already cloned at $(PLUGIN_DIR)"; \
+	else \
+	  echo "cloning $(PLUGIN_REPO) -> $(PLUGIN_DIR)"; \
+	  mkdir -p "$$(dirname $(PLUGIN_DIR))"; \
+	  git clone "$(PLUGIN_REPO)" "$(PLUGIN_DIR)"; \
+	fi
+	@echo "set CLAUDE_PLUGIN_PATH=$$(realpath $(PLUGIN_DIR)) in your .env"
+
+plugin-update:
+	cd $(PLUGIN_DIR) && git pull --ff-only
 
 # Development
 dev-backend:

@@ -18,11 +18,18 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Claude CLI — installed via the official Node-based installer. Node is a
 # transitive dep of the CLI itself; we install nodejs once and let npm grab
-# the binary.
+# the binary. `git` is needed by the plugin clone step below.
 RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
- && apt-get install -y --no-install-recommends nodejs \
+ && apt-get install -y --no-install-recommends nodejs git \
  && npm install -g @anthropic-ai/claude-code \
  && rm -rf /var/lib/apt/lists/*
+
+# Claude plugin lives in its own repo (https://github.com/alisadikinma/jobhunter-plugin).
+# Pin to a tag/branch via build arg so prod deploys are deterministic.
+ARG JOBHUNTER_PLUGIN_REF=main
+RUN git clone --branch "$JOBHUNTER_PLUGIN_REF" --depth 1 \
+      https://github.com/alisadikinma/jobhunter-plugin.git /app/claude-plugin \
+ && rm -rf /app/claude-plugin/.git
 
 WORKDIR /app
 
@@ -43,7 +50,6 @@ RUN pandoc --print-default-data-file=reference.docx > /app/templates/cv-template
 
 RUN mkdir -p /tmp/jobhunter_agent_jobs /app/storage/cvs
 
-# Claude plugin dir is mounted from the host at runtime (docker-compose).
 ENV CLAUDE_PLUGIN_PATH=/app/claude-plugin
 ENV CV_STORAGE_DIR=/app/storage/cvs
 ENV CV_REFERENCE_DOCX=/app/templates/cv-template.docx

@@ -55,8 +55,8 @@ sudo usermod -aG docker $USER
 newgrp docker
 docker info >/dev/null && echo "docker socket OK" || echo "still need sudo"
 
-# 2. Clone the repo
-git clone https://github.com/alisadikinma/jobhunter.git ~/jobhunter
+# 2. Clone the repo (uses dedicated deploy key — see Generating the SSH key above)
+git clone git@github-jobhunter:alisadikinma/jobhunter-platform.git ~/jobhunter
 cd ~/jobhunter
 
 # 3. Build the .env from .env.example (production values)

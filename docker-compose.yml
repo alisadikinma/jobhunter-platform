@@ -104,7 +104,7 @@ services:
       - "traefik.enable=true"
       - "traefik.http.routers.jobhunter-api.rule=Host(`jobs.alisadikinma.com`) && PathPrefix(`/api`)"
       - "traefik.http.routers.jobhunter-api.entrypoints=websecure"
-      - "traefik.http.routers.jobhunter-api.tls.certresolver=le"
+      - "traefik.http.routers.jobhunter-api.tls.certresolver=letsencrypt"
       - "traefik.http.services.jobhunter-api.loadbalancer.server.port=8000"
     restart: unless-stopped
 
@@ -124,7 +124,7 @@ services:
       - "traefik.enable=true"
       - "traefik.http.routers.jobhunter-web.rule=Host(`jobs.alisadikinma.com`)"
       - "traefik.http.routers.jobhunter-web.entrypoints=websecure"
-      - "traefik.http.routers.jobhunter-web.tls.certresolver=le"
+      - "traefik.http.routers.jobhunter-web.tls.certresolver=letsencrypt"
       - "traefik.http.services.jobhunter-web.loadbalancer.server.port=3000"
       - "traefik.http.routers.jobhunter-web.priority=1"
       - "traefik.http.routers.jobhunter-api.priority=10"

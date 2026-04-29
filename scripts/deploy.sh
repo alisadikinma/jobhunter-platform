@@ -47,6 +47,8 @@ echo "▶ User: $(whoami) | Host: $(hostname)"
 # ---- 0.5. Preflight: docker + compose available ------------------------------
 echo "▶ Preflight tool check:"
 missing_tools=()
+DOCKER="docker"   # may be overridden to "sudo docker" below
+
 for tool in git docker; do
   if path="$(command -v "$tool" 2>/dev/null)"; then
     printf "  ✓ %-10s %s\n" "$tool" "$path"
@@ -56,14 +58,38 @@ for tool in git docker; do
   fi
 done
 
+# Resolve docker permission: if user can't reach the daemon socket, fall back
+# to `sudo docker`. This makes the script work whether or not the deploy user
+# is in the `docker` group (preferred is to add them via
+# `sudo usermod -aG docker $USER`, but we don't want to require it).
+if docker info >/dev/null 2>&1; then
+  DOCKER="docker"
+  printf "  ✓ %-10s direct (deploy user has socket access)\n" "docker"
+elif sudo -n docker info >/dev/null 2>&1; then
+  DOCKER="sudo docker"
+  printf "  ✓ %-10s via passwordless sudo\n" "docker"
+else
+  printf "  ✗ %-10s socket denied AND sudo unavailable\n" "docker"
+  echo "       Fix one of:"
+  echo "       (a) sudo usermod -aG docker \$USER && newgrp docker  (preferred)"
+  echo "       (b) configure passwordless sudo for the deploy user"
+  missing_tools+=("docker")
+fi
+
 # Resolve compose CLI: prefer `docker compose` (v2 plugin), fall back to
 # `docker-compose` (v1 standalone). Bail if neither.
-if docker compose version >/dev/null 2>&1; then
-  COMPOSE="docker compose"
+if $DOCKER compose version >/dev/null 2>&1; then
+  COMPOSE="$DOCKER compose"
   printf "  ✓ %-10s docker compose (v2 plugin)\n" "compose"
 elif command -v docker-compose >/dev/null 2>&1; then
-  COMPOSE="docker-compose"
-  printf "  ✓ %-10s %s\n" "compose" "$(command -v docker-compose)"
+  # Standalone docker-compose v1 — needs the same sudo prefix if docker did
+  COMPOSE_BIN="$(command -v docker-compose)"
+  if [ "$DOCKER" = "sudo docker" ]; then
+    COMPOSE="sudo $COMPOSE_BIN"
+  else
+    COMPOSE="$COMPOSE_BIN"
+  fi
+  printf "  ✓ %-10s %s\n" "compose" "$COMPOSE_BIN"
 else
   printf "  ✗ %-10s NOT FOUND (need 'docker compose' v2 or 'docker-compose' v1)\n" "compose"
   missing_tools+=("compose")
@@ -120,8 +146,8 @@ $COMPOSE up -d --remove-orphans
 # ---- 5. Cleanup --------------------------------------------------------------
 # Prune dangling images so the VPS disk doesn't fill up. Volumes are preserved
 # (no -a, no --volumes).
-echo "▶ docker image prune -f"
-docker image prune -f >/dev/null 2>&1 || true
+echo "▶ ${DOCKER} image prune -f"
+$DOCKER image prune -f >/dev/null 2>&1 || true
 
 echo ""
 echo "✓ Deploy complete @ $(date -u +'%Y-%m-%dT%H:%M:%SZ')"

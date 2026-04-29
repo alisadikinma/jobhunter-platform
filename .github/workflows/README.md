@@ -14,42 +14,82 @@ CI does **not** gate the deploy — they run in parallel. If you want CI-passing
 
 ## Required GitHub Secrets
 
-Go to **Settings → Secrets and variables → Actions → New repository secret** and add:
+Go to **Settings → Secrets and variables → Actions → New repository secret** and add (verified values for srv941303):
 
-| Secret | Example value | Purpose |
+| Secret | Value | Purpose |
 |---|---|---|
-| `VPS_SSH_HOST` | `jobs.alisadikinma.com` or `<srv941303 IP>` | VPS hostname or IP |
-| `VPS_SSH_USER` | `deploy` | SSH user with project-directory write access AND membership in the `docker` group |
-| `VPS_SSH_KEY` | `-----BEGIN OPENSSH PRIVATE KEY-----\n...` | Private key (full contents) — matches an `authorized_keys` entry on the VPS |
-| `VPS_SSH_PORT` | `22` (optional) | Override if SSH runs on a non-standard port |
-| `VPS_PROJECT_PATH` | `/srv/jobhunter` (or wherever you cloned this repo) | Absolute path to the project root on the VPS |
+| `VPS_SSH_HOST` | `31.97.188.145` | srv941303 public IP (matches `.mcp.json`) |
+| `VPS_SSH_USER` | `claudesn` | UID 1003, member of `sudo` + `www-data` (matches `.mcp.json`) |
+| `VPS_SSH_KEY` | `-----BEGIN OPENSSH PRIVATE KEY-----\n...` | Private key (full contents). Use a dedicated deploy key (preferred) or `~/.ssh/id_ed25519` (the same key the local `.mcp.json` uses) |
+| `VPS_SSH_PORT` | `22` (optional, default works) | Override only if SSH runs on a non-standard port |
+| `VPS_PROJECT_PATH` | `/home/claudesn/jobhunter` | Where the repo will live on the VPS (claudesn owns home — no permission gymnastics) |
 
-### Generating the SSH key
+### Generating the SSH key (recommended — dedicated deploy key)
 
 On your local machine:
 ```bash
 ssh-keygen -t ed25519 -C "github-actions-jobhunter" -f ~/.ssh/jobhunter_deploy -N ""
-cat ~/.ssh/jobhunter_deploy.pub    # add this line to VPS ~/.ssh/authorized_keys
-cat ~/.ssh/jobhunter_deploy        # paste full contents into VPS_SSH_KEY secret
+cat ~/.ssh/jobhunter_deploy.pub    # → append to claudesn's ~/.ssh/authorized_keys on the VPS
+cat ~/.ssh/jobhunter_deploy        # → paste full contents into the VPS_SSH_KEY secret
 ```
 
-On the VPS (as the deploy user):
+Append the public key on the VPS:
 ```bash
-mkdir -p ~/.ssh && chmod 700 ~/.ssh
-echo "<paste public key here>" >> ~/.ssh/authorized_keys
+ssh claudesn@31.97.188.145
+echo "<paste public key>" >> ~/.ssh/authorized_keys
 chmod 600 ~/.ssh/authorized_keys
 ```
 
-## First-run checklist on the VPS
+(Quicker alternative: reuse `~/.ssh/id_ed25519` from `.mcp.json` for `VPS_SSH_KEY`. Works but rotates that one key out of every project at once if it ever leaks. Dedicated key is cleaner.)
 
-- [ ] Repo is cloned at `VPS_PROJECT_PATH` and `master` is checked out
-- [ ] `.env` exists in the repo root with all production values (see `.env.example` — `JWT_SECRET`, `CALLBACK_SECRET` ≥32 bytes, `APIFY_FERNET_KEY` generated, `POSTGRES_PASSWORD`, mailbox creds optional)
-- [ ] Deploy user is in the `docker` group: `sudo usermod -aG docker $USER && newgrp docker`
-- [ ] `docker info` runs cleanly as the deploy user (no `permission denied`)
-- [ ] Either `docker compose version` (v2 plugin) OR `docker-compose --version` (v1) prints a version
-- [ ] Traefik is already running on the VPS (jobhunter compose attaches via labels — it does not bring up Traefik itself)
-- [ ] DNS for `jobs.alisadikinma.com` points at the VPS IP
-- [ ] All 5 GitHub secrets configured
+## First-run bootstrap on srv941303
+
+One-time setup as `claudesn`. After this, every push to `master` deploys automatically.
+
+```bash
+ssh claudesn@31.97.188.145
+
+# 1. Optional but recommended: add to docker group so deploy.sh doesn't need sudo.
+#    Skip if you'd rather keep the script's `sudo docker` auto-fallback in play.
+sudo usermod -aG docker $USER
+newgrp docker
+docker info >/dev/null && echo "docker socket OK" || echo "still need sudo"
+
+# 2. Clone the repo
+git clone https://github.com/alisadikinma/jobhunter.git ~/jobhunter
+cd ~/jobhunter
+
+# 3. Build the .env from .env.example (production values)
+cp .env.example .env
+# Edit .env — set:
+#   ENV=prod
+#   POSTGRES_PASSWORD=<generate>
+#   JWT_SECRET=<python -c "import secrets; print(secrets.token_urlsafe(48))">
+#   CALLBACK_SECRET=<python -c "import secrets; print(secrets.token_urlsafe(48))">
+#   APIFY_FERNET_KEY=<python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())">
+#   ADMIN_EMAIL / ADMIN_PASSWORD
+#   MAIL_* (Hostinger creds — same as local .env)
+#   POSTGRES_PASSWORD must match the password baked into DATABASE_URL
+
+# 4. Smoke test the deploy script manually (verifies everything before letting CI fire)
+bash scripts/deploy.sh
+
+# 5. Confirm health
+curl -sf https://jobs.alisadikinma.com/api/health
+```
+
+After step 5 returns `{"status":"ok"}`, configure the 5 GitHub secrets and the next `git push origin master` will auto-deploy.
+
+## First-run checklist
+
+- [ ] All 5 GitHub secrets configured (Settings → Secrets and variables → Actions)
+- [ ] SSH from a workstation succeeds: `ssh claudesn@31.97.188.145 'whoami'`
+- [ ] Repo cloned at `/home/claudesn/jobhunter`, `master` checked out
+- [ ] `.env` filled in with production values (no defaults, no `change-me`)
+- [ ] Either `docker info` runs cleanly as `claudesn` (preferred — added to docker group), OR passwordless `sudo` works (deploy.sh auto-detects)
+- [ ] `docker compose version` shows v2.x (already verified: v2.39.2)
+- [ ] Traefik is already running on the VPS (jobhunter compose only attaches via labels)
+- [ ] DNS for `jobs.alisadikinma.com` points at `31.97.188.145`
 - [ ] Smoke test: push a docs-only commit to `master`, watch the Actions tab
 
 ## Manual trigger + dispatch options

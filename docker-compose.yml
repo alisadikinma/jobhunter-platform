@@ -61,6 +61,9 @@ services:
   api:
     build:
       context: ./backend
+    networks:
+      - default   # internal: db + redis + firecrawl
+      - proxy     # external: shared with Traefik (defined at bottom)
     environment:
       - ENV=prod
       - DATABASE_URL=postgresql://jobhunter:${POSTGRES_PASSWORD}@db:5432/jobhunter
@@ -110,6 +113,9 @@ services:
       context: ./frontend
       args:
         NEXT_PUBLIC_API_URL: https://jobs.alisadikinma.com
+    networks:
+      - default
+      - proxy
     environment:
       - NEXT_PUBLIC_API_URL=https://jobs.alisadikinma.com
     depends_on:
@@ -132,3 +138,10 @@ networks:
   default:
     name: jobhunter
     external: false
+  # `proxy` is the existing shared Traefik network on srv941303 — created
+  # outside this compose file (by the Traefik install). Marked external so
+  # `docker compose down` doesn't try to delete it. If the network name on
+  # your host differs, override here or rename via `docker network rename`.
+  proxy:
+    name: proxy
+    external: true

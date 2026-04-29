@@ -1,0 +1,90 @@
+name: Deploy to VPS
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+    inputs:
+      force_rebuild:
+        description: "Rebuild Docker images with --no-cache (use after jobhunter-plugin repo updates)"
+        type: boolean
+        default: false
+      skip_frontend:
+        description: "Skip frontend image rebuild"
+        type: boolean
+        default: false
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false  # never cancel a running deploy mid-flight
+
+jobs:
+  deploy:
+    name: Auto-deploy to production VPS
+    runs-on: ubuntu-latest
+    timeout-minutes: 25  # docker builds can take a while on a small VPS
+
+    steps:
+      - name: Checkout (sanity check only — not rsynced)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Install SSH key
+        env:
+          SSH_PRIVATE_KEY: ${{ secrets.VPS_SSH_KEY }}
+          SSH_HOST: ${{ secrets.VPS_SSH_HOST }}
+          SSH_PORT: ${{ secrets.VPS_SSH_PORT || '22' }}
+        run: |
+          mkdir -p ~/.ssh
+          chmod 700 ~/.ssh
+          # Preserve newlines via env var (NOT inline interpolation — that corrupts multi-line keys)
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          # Validate key is a real OpenSSH key (fail fast with clear message)
+          head -1 ~/.ssh/deploy_key | grep -qE '^-----BEGIN (OPENSSH|RSA|EC) PRIVATE KEY-----$' \
+            || { echo "::error::VPS_SSH_KEY secret is malformed — missing BEGIN header"; exit 1; }
+          # ssh-keyscan is best-effort; failure is OK because the SSH step uses accept-new fallback
+          ssh-keyscan -p "$SSH_PORT" -H "$SSH_HOST" >> ~/.ssh/known_hosts 2>/dev/null \
+            || echo "::warning::ssh-keyscan failed — will use StrictHostKeyChecking=accept-new on connect"
+          chmod 600 ~/.ssh/known_hosts 2>/dev/null || true
+
+      - name: Run deploy.sh on VPS
+        env:
+          SSH_HOST: ${{ secrets.VPS_SSH_HOST }}
+          SSH_USER: ${{ secrets.VPS_SSH_USER }}
+          SSH_PORT: ${{ secrets.VPS_SSH_PORT || '22' }}
+          PROJECT_PATH: ${{ secrets.VPS_PROJECT_PATH }}
+          FORCE_REBUILD: ${{ inputs.force_rebuild && '1' || '0' }}
+          SKIP_FRONTEND: ${{ inputs.skip_frontend && '1' || '0' }}
+        run: |
+          # Bootstrap: git pull FIRST (so scripts/deploy.sh exists on first run),
+          # then execute the now-fresh script with deploy switches.
+          ssh -i ~/.ssh/deploy_key \
+            -p "$SSH_PORT" \
+            -o StrictHostKeyChecking=accept-new \
+            -o UserKnownHostsFile=~/.ssh/known_hosts \
+            -o ServerAliveInterval=30 \
+            -o ConnectTimeout=30 \
+            "$SSH_USER@$SSH_HOST" \
+            "cd '$PROJECT_PATH' && git fetch origin master && git reset --hard origin/master && DEPLOY_FORCE_REBUILD='$FORCE_REBUILD' DEPLOY_SKIP_FRONTEND='$SKIP_FRONTEND' bash scripts/deploy.sh"
+
+      - name: Verify deploy via /api/health
+        run: |
+          # API container runs alembic + seed_admin before uvicorn boots, so
+          # the health endpoint may not be live for ~10-30s after compose up.
+          # Retry up to 60s before failing.
+          for i in $(seq 1 10); do
+            if curl --fail --silent --show-error --max-time 10 \
+                 https://jobs.alisadikinma.com/api/health \
+                 -o /tmp/health.json 2>/tmp/health.err; then
+              echo "✓ health check passed (attempt $i)"
+              cat /tmp/health.json
+              exit 0
+            fi
+            echo "attempt $i — health check pending, sleeping 6s"
+            sleep 6
+          done
+          echo "::error::health check failed after 60s"
+          cat /tmp/health.err 2>/dev/null || true
+          exit 1

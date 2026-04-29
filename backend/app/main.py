@@ -69,7 +69,7 @@ app.include_router(scraper_router)
 app.include_router(ws_router)
 
 
-@app.get("/health")
+@app.get("/api/health")
 def health():
     return {"status": "ok"}
 

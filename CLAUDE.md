@@ -114,6 +114,16 @@ make up                   # docker-compose up -d
 make logs                 # docker-compose logs -f api
 ```
 
+## Deployment
+
+GitHub Actions auto-deploys to the VPS on every push to `master`:
+
+- **`.github/workflows/deploy.yml`** SSHes into the VPS and runs `scripts/deploy.sh`.
+- **`scripts/deploy.sh`** does `git pull` → `docker compose build --pull` → `docker compose up -d` → `docker image prune -f`. Alembic migrations and admin seed run inside the api container's CMD, so no separate migrate step.
+- Post-deploy probe: `https://jobs.alisadikinma.com/api/health` (retries 60s while api boots).
+- Required GitHub secrets: `VPS_SSH_HOST`, `VPS_SSH_USER`, `VPS_SSH_KEY`, `VPS_PROJECT_PATH` (+ optional `VPS_SSH_PORT`). Full setup in [.github/workflows/README.md](.github/workflows/README.md).
+- Manual dispatch flags: `force_rebuild` (after a plugin-only update — busts the Dockerfile `git clone` layer cache) and `skip_frontend`.
+
 ## API Routes
 
 ```
@@ -194,6 +204,9 @@ GET    /api/callbacks/context/{application_id}
 
 # Scheduler
 GET    /api/scheduler/status
+
+# Health
+GET    /api/health                   # liveness probe — used by deploy.yml post-deploy check
 ```
 
 ## Database Tables

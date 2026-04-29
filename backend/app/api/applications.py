@@ -1,7 +1,8 @@
 """Applications tracker — CRUD + Kanban + stats."""
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import func as sa_func
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -12,6 +13,8 @@ from app.models.job import ScrapedJob
 from app.models.user import User
 from app.schemas.application import (
     KANBAN_STATUSES,
+    ActivityTimeline,
+    ActivityTimelineDay,
     ApplicationActivityResponse,
     ApplicationCreate,
     ApplicationDetail,
@@ -105,6 +108,44 @@ def stats(
         avg_days_to_reply=round(avg_days, 2) if avg_days is not None else None,
         pipeline_value_usd=int(pipeline_value),
     )
+
+
+@router.get("/activity-timeline", response_model=ActivityTimeline)
+def activity_timeline(
+    days: int = Query(14, ge=1, le=90),
+    db: Session = Depends(get_db),
+    _current: User = Depends(get_current_user),
+):
+    """Per-day count of application_activities rows over the last N days.
+
+    Empty days are returned with count=0 so the chart never has gaps.
+    """
+    end = datetime.now(UTC).replace(hour=0, minute=0, second=0, microsecond=0) + timedelta(days=1)
+    start = end - timedelta(days=days)
+
+    rows = (
+        db.query(
+            sa_func.date_trunc("day", ApplicationActivity.created_at).label("day"),
+            sa_func.count().label("count"),
+        )
+        .filter(ApplicationActivity.created_at >= start)
+        .filter(ApplicationActivity.created_at < end)
+        .group_by("day")
+        .all()
+    )
+    by_day: dict[str, int] = {}
+    for day, count in rows:
+        # day is timezone-aware (TIMESTAMPTZ); normalise to UTC date string.
+        if hasattr(day, "astimezone"):
+            day = day.astimezone(UTC)
+        by_day[day.date().isoformat()] = int(count)
+
+    out: list[ActivityTimelineDay] = []
+    for offset in range(days):
+        day_dt = start + timedelta(days=offset)
+        key = day_dt.date().isoformat()
+        out.append(ActivityTimelineDay(date=key, count=by_day.get(key, 0)))
+    return ActivityTimeline(days=out)
 
 
 # ---------------------------------------------------------------- CRUD

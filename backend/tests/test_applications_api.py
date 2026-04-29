@@ -210,3 +210,55 @@ def test_list_filter_by_status(api):
 def test_list_requires_auth():
     client = TestClient(app)
     assert client.get("/api/applications").status_code == 401
+
+
+def test_activity_timeline_returns_padded_days(api, pg_engine):
+    from datetime import datetime, timedelta
+
+    from sqlalchemy.orm import Session
+
+    with Session(pg_engine) as s:
+        appl = Application(status="targeting")
+        s.add(appl)
+        s.flush()
+        now = datetime.now(UTC)
+        s.add_all([
+            ApplicationActivity(
+                application_id=appl.id,
+                activity_type="created",
+                created_at=now - timedelta(days=1),
+            ),
+            ApplicationActivity(
+                application_id=appl.id,
+                activity_type="status_change",
+                created_at=now - timedelta(days=1),
+            ),
+            ApplicationActivity(
+                application_id=appl.id,
+                activity_type="edited",
+                created_at=now - timedelta(days=3),
+            ),
+        ])
+        s.commit()
+
+    client, _ = api
+    r = client.get("/api/applications/activity-timeline?days=7")
+    assert r.status_code == 200
+    body = r.json()
+    assert len(body["days"]) == 7
+
+    counts = {d["date"]: d["count"] for d in body["days"]}
+    yesterday = (datetime.now(UTC).date() - timedelta(days=1)).isoformat()
+    three_days_ago = (datetime.now(UTC).date() - timedelta(days=3)).isoformat()
+    assert counts[yesterday] == 2
+    assert counts[three_days_ago] == 1
+    # Unfilled days padded with zero
+    assert all(c >= 0 for c in counts.values())
+    untouched = (datetime.now(UTC).date() - timedelta(days=5)).isoformat()
+    assert counts[untouched] == 0
+
+
+def test_activity_timeline_validates_days_range(api):
+    client, _ = api
+    assert client.get("/api/applications/activity-timeline?days=0").status_code == 422
+    assert client.get("/api/applications/activity-timeline?days=91").status_code == 422

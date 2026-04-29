@@ -1,8 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { use } from "react";
+import { useRouter } from "next/navigation";
+import { use, useState } from "react";
 
+import { ProgressModal } from "@/components/shared/ProgressModal";
 import {
   useApplication,
   useGenerateCV,
@@ -11,11 +13,16 @@ import {
 } from "@/hooks/useApplications";
 import { useEmails } from "@/hooks/useEmails";
 
+type ActiveJob =
+  | { kind: "cv"; agentJobId: number; generatedCVId: number }
+  | { kind: "email"; agentJobId: number };
+
 export default function ApplicationDetailPage({
   params,
 }: {
   params: Promise<{ id: string }>;
 }) {
+  const router = useRouter();
   const { id: raw } = use(params);
   const id = Number(raw);
   const { data: app, isLoading } = useApplication(id);
@@ -23,6 +30,7 @@ export default function ApplicationDetailPage({
   const genCV = useGenerateCV();
   const genEmails = useGenerateEmails();
   const update = useUpdateApplication();
+  const [active, setActive] = useState<ActiveJob | null>(null);
 
   if (isLoading || !app) return <div className="text-neutral-500">Loading…</div>;
 
@@ -45,16 +53,23 @@ export default function ApplicationDetailPage({
             <button
               onClick={async () => {
                 const r = await genCV.mutateAsync(id);
-                window.location.href = `/cv/generated/${r.generated_cv_id}`;
+                setActive({
+                  kind: "cv",
+                  agentJobId: r.agent_job_id,
+                  generatedCVId: r.generated_cv_id,
+                });
               }}
-              disabled={genCV.isPending}
+              disabled={genCV.isPending || active !== null}
               className="btn-primary"
             >
               {genCV.isPending ? "Starting…" : "Generate CV"}
             </button>
             <button
-              onClick={() => genEmails.mutate(id)}
-              disabled={genEmails.isPending}
+              onClick={async () => {
+                const r = await genEmails.mutateAsync(id);
+                setActive({ kind: "email", agentJobId: r.agent_job_id });
+              }}
+              disabled={genEmails.isPending || active !== null}
               className="btn-primary"
             >
               {genEmails.isPending ? "Starting…" : "Generate Emails"}
@@ -116,6 +131,20 @@ export default function ApplicationDetailPage({
           ))}
         </ol>
       </aside>
+
+      {active && (
+        <ProgressModal
+          agentJobId={active.agentJobId}
+          title={active.kind === "cv" ? "Tailoring CV" : "Drafting cold email"}
+          onClose={() => setActive(null)}
+          onComplete={() => {
+            if (active.kind === "cv") {
+              router.push(`/cv/generated/${active.generatedCVId}`);
+            }
+            setActive(null);
+          }}
+        />
+      )}
     </div>
   );
 }

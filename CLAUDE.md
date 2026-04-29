@@ -132,6 +132,10 @@ PATCH  /api/applications/{id}
 DELETE /api/applications/{id}
 GET    /api/applications/kanban
 GET    /api/applications/stats
+GET    /api/applications/activity-timeline?days=N    # for dashboard chart
+
+# WebSocket — live progress for any agent_job (CV tailor, cold email, job score)
+WS     /ws/progress/{agent_job_id}?token=<JWT>
 
 # CV
 GET    /api/cv/master
@@ -218,7 +222,78 @@ portfolio_assets       # Portfolio items for CV tailoring (auto-scanned + manual
 
 ## Debugging Checklist
 
-(Populated as issues are discovered during development)
+Non-obvious gotchas discovered during the 23-phase build. Hit any of these first
+before you go deeper.
+
+### Backend / infra
+
+- **APScheduler is in-process — `--workers 1` only.** Two uvicorn workers means
+  two schedulers means duplicate cron-fired scrapes. The Dockerfile pins
+  `--workers 1` (`backend/Dockerfile:50`); don't override that in
+  `docker-compose.yml` to "scale up".
+- **Postgres is on port 5433, not 5432.** Avoids a clash with the Portfolio_v2
+  MySQL stack on the same host. Set `DATABASE_URL=...:5433/...` everywhere —
+  the dev compose, the prod compose, and any local scripts. `pytest-postgresql`
+  in `tests/conftest.py` also expects `:5433`.
+- **Auth uses `bcrypt` directly, not `passlib[bcrypt]`.** `passlib` broke on
+  bcrypt 5.x (introspection bug); we hash via `bcrypt.hashpw` /
+  `bcrypt.checkpw` in `backend/app/core/security.py`. If you reintroduce
+  passlib you'll get a "trapped error reading bcrypt version" cryptic warning
+  before every login.
+- **JWT was swapped from `python-jose` to `PyJWT`.** `python-jose` is
+  unmaintained (last release 2022, open CVEs). Decoding code lives in
+  `backend/app/core/security.py::decode_token`; all JWT timestamps must be
+  timezone-aware (`datetime.now(timezone.utc)`) or you get the classic
+  "expiration claim in the past" false-negative when the host TZ is non-UTC.
+- **All `DateTime` columns are TIMESTAMPTZ.** Phases 1–2 used naive
+  timestamps; migration `003_fk_tz_jsonb` rewrites them to
+  `DateTime(timezone=True)` and casts existing rows via `AT TIME ZONE 'UTC'`.
+  New columns must follow suit, otherwise `email_sent_at - replied_at` math
+  breaks across DST.
+- **`resume-matcher` is intentionally NOT installed.** It's ~400MB of
+  torch+spacy for a keyword-overlap metric. We ship a Jaccard-style scorer at
+  `backend/app/services/scorer_service.py` instead — the rationale is in the
+  module docstring. If you `pip install resume-matcher` "to be safe" you'll
+  blow up the Docker image and the Claude CLI install timeout.
+- **Pandoc + LibreOffice are both required at runtime for PDF.** Pandoc does
+  Markdown → DOCX; LibreOffice headless does DOCX → PDF. Pandoc's PDF engines
+  (xelatex, wkhtmltopdf) all break in slim containers — see the docstring at
+  `backend/app/services/docx_service.py::docx_to_pdf`. The `cv-template.docx`
+  Pandoc reference is generated at Docker build time
+  (`backend/Dockerfile`, the `--print-default-data-file` step) so no binary
+  lives in git; for dev hosts run
+  `python backend/scripts/generate_cv_template.py`.
+- **Apify tokens are Fernet-encrypted.** `APIFY_FERNET_KEY` is required even in
+  dev — without it `apify_pool.encrypt`/`decrypt` raise on the first DB read.
+  Generate via
+  `python -c "from cryptography.fernet import Fernet; print(Fernet.generate_key().decode())"`.
+- **Firecrawl is opt-in via `--profile firecrawl`.** The two services
+  (`firecrawl-api`, `firecrawl-worker`) are profile-gated in
+  `docker-compose.yml` because the upstream image is large and not everyone
+  needs JD enrichment. Without the profile, `services/firecrawl_service.py`
+  short-circuits to a no-op.
+
+### Claude CLI / skills
+
+- **Claude CLI subprocess uses the callback secret, NOT the user JWT.** Spawn
+  passes `--api-token <CALLBACK_SECRET>` and the skill calls back via
+  `X-Callback-Secret`. If you point a skill at a user-JWT-protected route it
+  401s. Add new callback endpoints under `app/api/callbacks.py` only.
+- **`CALLBACK_SECRET` ≥32 bytes outside `ENV=dev`.** Same threshold as
+  `JWT_SECRET` per RFC 7518 §3.2. The validator in `app/config.py` rejects
+  shorter values at startup so you discover this in CI, not at the first cold
+  email.
+
+### Frontend
+
+- **WebSocket auth is via `?token=` query param, not headers.** Browser
+  WebSocket constructors can't set headers. `useProgress.ts` reads
+  `localStorage` and appends the JWT to the URL; the backend at
+  `app/api/ws.py` decodes it via `decode_token()` and closes with code 4401
+  on failure. Don't try to add a `Sec-WebSocket-Protocol` workaround.
+- **Variant CSS classes (`bg-variant-vibe` / `automation` / `video`) live in
+  `tailwind.config.ts`.** If you add a fourth variant, add the matching
+  `bg-variant-X` token there or the dashboard chips render transparent.
 
 ## Conventions
 

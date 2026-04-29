@@ -15,6 +15,7 @@ from app.api.enrichment import router as enrichment_router
 from app.api.jobs import router as jobs_router
 from app.api.portfolio import router as portfolio_router
 from app.api.scraper import router as scraper_router
+from app.api.ws import router as ws_router
 from app.scheduler import shutdown_scheduler, start_scheduler
 
 log = logging.getLogger(__name__)
@@ -63,6 +64,7 @@ app.include_router(enrichment_router)
 app.include_router(jobs_router)
 app.include_router(portfolio_router)
 app.include_router(scraper_router)
+app.include_router(ws_router)
 
 
 @app.get("/health")

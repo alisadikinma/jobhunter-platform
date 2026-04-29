@@ -1,89 +1,103 @@
 "use client";
 
+import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 
+import { StatsCards } from "@/components/dashboard/StatsCards";
+import { WeeklyChart } from "@/components/dashboard/WeeklyChart";
+import { useJobStats } from "@/hooks/useStats";
 import { api } from "@/lib/api";
 
-type JobStats = {
-  total: number;
-  by_source: Record<string, number>;
-  by_variant: Record<string, number>;
-  high_score_count: number;
+type RecentJob = {
+  id: number;
+  title: string;
+  company_name: string | null;
+  relevance_score: number | null;
+  suggested_variant: string | null;
 };
 
-type AppStats = {
+type JobListResponse = {
+  items: RecentJob[];
   total: number;
-  response_rate: number;
-  offer_rate: number;
-  avg_days_to_reply: number | null;
-  pipeline_value_usd: number;
 };
 
 export default function DashboardPage() {
-  const jobStats = useQuery({
-    queryKey: ["jobs", "stats"],
-    queryFn: async () => (await api.get<JobStats>("/api/jobs/stats")).data,
-  });
-  const appStats = useQuery({
-    queryKey: ["applications", "stats"],
-    queryFn: async () => (await api.get<AppStats>("/api/applications/stats")).data,
+  const jobStats = useJobStats();
+
+  const recent = useQuery({
+    queryKey: ["jobs", "recent-high-score"],
+    queryFn: async () =>
+      (
+        await api.get<JobListResponse>(
+          "/api/jobs?min_score=80&sort=relevance_score&order=desc&page_size=8",
+        )
+      ).data,
   });
 
   return (
     <div className="space-y-6">
       <h1 className="text-2xl font-semibold">Dashboard</h1>
 
-      <section className="grid grid-cols-1 gap-4 md:grid-cols-4">
-        <StatCard label="Scraped Jobs" value={jobStats.data?.total ?? "—"} />
-        <StatCard
-          label="High-Score Jobs (≥80)"
-          value={jobStats.data?.high_score_count ?? "—"}
-        />
-        <StatCard label="Active Applications" value={appStats.data?.total ?? "—"} />
-        <StatCard
-          label="Response Rate"
-          value={
-            appStats.data
-              ? `${Math.round(appStats.data.response_rate * 100)}%`
-              : "—"
-          }
-        />
-      </section>
+      <StatsCards />
 
-      <section className="grid grid-cols-1 gap-4 md:grid-cols-2">
+      <section className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <div className="lg:col-span-2">
+          <WeeklyChart />
+        </div>
+
         <div className="card">
-          <h2 className="mb-2 text-sm font-medium text-neutral-400">
+          <h2 className="mb-2 text-sm font-medium text-neutral-300">
             Jobs by Variant
           </h2>
-          <VariantRow variant="vibe_coding" count={jobStats.data?.by_variant?.vibe_coding ?? 0} />
-          <VariantRow variant="ai_automation" count={jobStats.data?.by_variant?.ai_automation ?? 0} />
-          <VariantRow variant="ai_video" count={jobStats.data?.by_variant?.ai_video ?? 0} />
-        </div>
-
-        <div className="card">
-          <h2 className="mb-2 text-sm font-medium text-neutral-400">
-            Application Funnel
-          </h2>
-          <dl className="grid grid-cols-2 gap-3 text-sm">
-            <FunnelStat label="Offer Rate" value={
-              appStats.data ? `${Math.round(appStats.data.offer_rate * 100)}%` : "—"
-            } />
-            <FunnelStat label="Avg Days to Reply" value={appStats.data?.avg_days_to_reply?.toFixed(1) ?? "—"} />
-            <FunnelStat label="Pipeline Value" value={
-              appStats.data ? `$${appStats.data.pipeline_value_usd.toLocaleString()}` : "—"
-            } />
-          </dl>
+          <VariantRow
+            variant="vibe_coding"
+            count={jobStats.data?.by_variant?.vibe_coding ?? 0}
+          />
+          <VariantRow
+            variant="ai_automation"
+            count={jobStats.data?.by_variant?.ai_automation ?? 0}
+          />
+          <VariantRow
+            variant="ai_video"
+            count={jobStats.data?.by_variant?.ai_video ?? 0}
+          />
         </div>
       </section>
-    </div>
-  );
-}
 
-function StatCard({ label, value }: { label: string; value: string | number }) {
-  return (
-    <div className="card">
-      <div className="text-xs uppercase tracking-wide text-neutral-500">{label}</div>
-      <div className="mt-1 font-mono text-2xl">{value}</div>
+      <section className="card">
+        <h2 className="mb-3 text-sm font-medium text-neutral-300">
+          Recent High-Score Jobs (≥80)
+        </h2>
+        {recent.isLoading ? (
+          <div className="text-sm text-neutral-500">Loading…</div>
+        ) : (recent.data?.items ?? []).length === 0 ? (
+          <div className="text-sm text-neutral-500">
+            No high-score jobs yet — trigger a scrape from the Jobs page.
+          </div>
+        ) : (
+          <ul className="divide-y divide-neutral-800">
+            {(recent.data?.items ?? []).map((j) => (
+              <li key={j.id} className="flex items-center justify-between py-2">
+                <div className="min-w-0 flex-1 pr-4">
+                  <Link
+                    href={`/jobs/${j.id}`}
+                    className="block truncate text-sm font-medium hover:text-brand-blue"
+                  >
+                    {j.title}
+                  </Link>
+                  <div className="truncate text-xs text-neutral-500">
+                    {j.company_name ?? "—"}
+                    {j.suggested_variant ? ` · ${j.suggested_variant}` : ""}
+                  </div>
+                </div>
+                <span className="ml-2 rounded-full bg-emerald-500/15 px-2 py-0.5 font-mono text-xs text-emerald-400">
+                  {j.relevance_score}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
     </div>
   );
 }
@@ -101,15 +115,6 @@ function VariantRow({ variant, count }: { variant: string; count: number }) {
         <span className="text-sm">{variant.replace("_", " ")}</span>
       </div>
       <span className="font-mono text-sm">{count}</span>
-    </div>
-  );
-}
-
-function FunnelStat({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <dt className="text-xs text-neutral-500">{label}</dt>
-      <dd className="mt-0.5 font-mono">{value}</dd>
     </div>
   );
 }

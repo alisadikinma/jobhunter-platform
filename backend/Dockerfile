@@ -35,11 +35,18 @@ COPY ./alembic.ini ./alembic.ini
 COPY ./scripts ./scripts
 COPY ./templates ./templates
 
+# Generate the Pandoc reference DOCX inside the image. The file isn't
+# committed (binary + locale-dependent); Pandoc's built-in default is
+# single-column and ATS-safe, which is exactly what /cv-tailor needs.
+RUN pandoc --print-default-data-file=reference.docx > /app/templates/cv-template.docx \
+ && test -s /app/templates/cv-template.docx
+
 RUN mkdir -p /tmp/jobhunter_agent_jobs /app/storage/cvs
 
 # Claude plugin dir is mounted from the host at runtime (docker-compose).
 ENV CLAUDE_PLUGIN_PATH=/app/claude-plugin
 ENV CV_STORAGE_DIR=/app/storage/cvs
+ENV CV_REFERENCE_DOCX=/app/templates/cv-template.docx
 ENV AGENT_JOB_LOG_DIR=/tmp/jobhunter_agent_jobs
 
 EXPOSE 8000

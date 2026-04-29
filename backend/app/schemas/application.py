@@ -90,3 +90,12 @@ class ApplicationStats(BaseModel):
     offer_rate: float  # offered / applied
     avg_days_to_reply: float | None
     pipeline_value_usd: int  # sum of salary_asked for active applications
+
+
+class ActivityTimelineDay(BaseModel):
+    date: str  # YYYY-MM-DD (UTC)
+    count: int
+
+
+class ActivityTimeline(BaseModel):
+    days: list[ActivityTimelineDay]

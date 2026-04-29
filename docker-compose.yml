@@ -96,10 +96,13 @@ services:
     # worker handles admin load fine; scale with a dedicated scheduler
     # service (separate container or external cron) if HTTP throughput
     # becomes a bottleneck.
-    command: >
-      sh -c "alembic upgrade head
-             && python scripts/seed_admin.py
-             && uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 1"
+    # Array form (not `>` folded scalar) — folded scalars proved unreliable
+    # across compose versions and produced literal newlines that broke the
+    # `&&` chain. Single-string `sh -c` is unambiguous.
+    command:
+      - sh
+      - -c
+      - alembic upgrade head && python scripts/seed_admin.py && uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 1
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.jobhunter-api.rule=Host(`jobs.alisadikinma.com`) && PathPrefix(`/api`)"

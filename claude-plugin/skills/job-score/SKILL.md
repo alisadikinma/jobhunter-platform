@@ -1,3 +1,8 @@
+---
+name: job-score
+description: Batch-score the most recent unscored scraped jobs against the master CV using the 3-variant rubric, then PUT results back to FastAPI via X-Callback-Secret. Invoked by the FastAPI subprocess spawner with --api-url, --api-token, --job-id.
+---
+
 # `/job-score` — batch score scraped jobs
 
 **Model:** Sonnet

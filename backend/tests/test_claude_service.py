@@ -13,6 +13,7 @@ def test_spawn_claude_creates_agent_job_row_and_launches_subprocess(pg_session, 
 
     monkeypatch.setattr(settings, "AGENT_JOB_LOG_DIR", str(tmp_path))
     monkeypatch.setattr(settings, "CLAUDE_PATH", "claude")
+    monkeypatch.setattr(settings, "CLAUDE_PLUGIN_PATH", "/app/claude-plugin")
     monkeypatch.setattr(settings, "CALLBACK_API_URL", "http://api.local")
     monkeypatch.setattr(settings, "CALLBACK_SECRET", "s3cr3t")
 
@@ -34,13 +35,20 @@ def test_spawn_claude_creates_agent_job_row_and_launches_subprocess(pg_session, 
     assert agent_job.process_pid == 12345
 
     called_cmd = runner.call_args[0][0]
-    assert called_cmd[0] == "claude"
-    assert "/job-score" in called_cmd
-    assert "--api-url" in called_cmd
-    assert "http://api.local" in called_cmd
-    assert "--api-token" in called_cmd
-    assert "s3cr3t" in called_cmd
-    assert str(agent_job.id) in called_cmd
+    # Binary may resolve via shutil.which to a Windows .cmd shim — only assert
+    # the basename is right.
+    assert "claude" in called_cmd[0].lower()
+    assert "--plugin-dir" in called_cmd
+    assert "/app/claude-plugin" in called_cmd
+    assert "--print" in called_cmd
+    assert "--dangerously-skip-permissions" in called_cmd
+
+    # The skill + its callback args are bundled into the final prompt arg.
+    skill_prompt = called_cmd[-1]
+    assert "/jobhunter:job-score" in skill_prompt
+    assert "--api-url http://api.local" in skill_prompt
+    assert "--api-token s3cr3t" in skill_prompt
+    assert f"--job-id {agent_job.id}" in skill_prompt
 
 
 def test_spawn_claude_marks_failed_when_binary_missing(pg_session, monkeypatch, tmp_path):

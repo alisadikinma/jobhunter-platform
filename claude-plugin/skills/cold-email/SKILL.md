@@ -1,3 +1,8 @@
+---
+name: cold-email
+description: Draft an initial cold email plus two follow-up variants for an application, personalised against the company + variant + tailored CV context. Returns subject + body per email. Calls back to FastAPI via X-Callback-Secret. Invoked by the FastAPI subprocess spawner with --api-url, --api-token, --job-id.
+---
+
 # `/cold-email` — draft 3-email sequence per application
 
 **Model:** Sonnet

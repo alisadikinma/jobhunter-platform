@@ -9,6 +9,7 @@ an agent_job_id back and polls/websocket-subscribes to progress.
 """
 import logging
 import os
+import shutil
 import subprocess
 from pathlib import Path
 
@@ -18,6 +19,26 @@ from app.config import settings
 from app.models.agent_job import AgentJob
 
 log = logging.getLogger(__name__)
+
+
+def _resolve_claude_binary() -> str:
+    """Resolve `settings.CLAUDE_PATH` to an actual executable.
+
+    On Windows, npm-installed CLIs ship as `claude`, `claude.cmd`,
+    `claude.ps1` — `subprocess.Popen` needs the `.cmd` shim, not the
+    bash-style script. `shutil.which` picks the right one (it honours
+    PATHEXT).
+    """
+    raw = settings.CLAUDE_PATH
+    # If the user gave an absolute path, trust it.
+    if os.path.isabs(raw) and os.path.exists(raw):
+        return raw
+    resolved = shutil.which(raw)
+    if resolved:
+        return resolved
+    # Fall back to the raw value — Popen will raise FileNotFoundError
+    # with a message the caller can surface.
+    return raw
 
 
 def spawn_claude(
@@ -55,16 +76,38 @@ def spawn_claude(
     log_dir.mkdir(parents=True, exist_ok=True)
     log_path = log_dir / f"{agent_job.id}.log"
 
-    cmd: list[str] = [
-        settings.CLAUDE_PATH,
-        "--plugin-path", settings.CLAUDE_PLUGIN_PATH,
-        skill_name,
+    # Claude CLI v2 contract:
+    #   - `--plugin-dir <path>` (not `--plugin-path`) loads the local plugin.
+    #   - Skills resolve via `/<plugin-name>:<skill>` (we prefix `jobhunter:`
+    #     here so callers can pass the bare skill slug).
+    #   - `-p` runs in print mode so the subprocess actually exits.
+    #   - Skills hit FastAPI via Bash/curl — `--dangerously-skip-permissions`
+    #     is required because there's no human to approve tool calls.
+    bare = skill_name.lstrip("/")
+    if ":" not in bare:
+        bare = f"jobhunter:{bare}"
+    skill_prompt_parts = [
+        f"/{bare}",
         "--api-url", settings.CALLBACK_API_URL.rstrip("/"),
         "--api-token", settings.CALLBACK_SECRET,
         "--job-id", str(agent_job.id),
     ]
     if extra_args:
-        cmd.extend(extra_args)
+        skill_prompt_parts.extend(extra_args)
+    skill_prompt = " ".join(skill_prompt_parts)
+
+    cmd: list[str] = [
+        _resolve_claude_binary(),
+        "--plugin-dir", settings.CLAUDE_PLUGIN_PATH,
+        "--print",
+        "--output-format", "text",
+        # Real bypass flag; --allow-dangerously-skip-permissions only EXPOSES
+        # the option, --dangerously-skip-permissions actually applies it.
+        "--dangerously-skip-permissions",
+    ]
+    if model_used:
+        cmd.extend(["--model", model_used])
+    cmd.append(skill_prompt)
 
     try:
         with log_path.open("ab", buffering=0) as fh:

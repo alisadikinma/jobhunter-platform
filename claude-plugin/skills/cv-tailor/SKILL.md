@@ -1,3 +1,8 @@
+---
+name: cv-tailor
+description: Generate a tailored variant-specific CV for one application — rewrites master CV summary, ranks experience bullets, and returns markdown + JSON. Calls back to FastAPI via X-Callback-Secret. Invoked by the FastAPI subprocess spawner with --api-url, --api-token, --job-id.
+---
+
 # `/cv-tailor` — tailor master CV for one application
 
 **Model:** Opus (craft-sensitive rewriting)

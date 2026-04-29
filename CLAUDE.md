@@ -283,6 +283,40 @@ before you go deeper.
   `JWT_SECRET` per RFC 7518 §3.2. The validator in `app/config.py` rejects
   shorter values at startup so you discover this in CI, not at the first cold
   email.
+- **Claude CLI flag is `--plugin-dir` (not `--plugin-path`).** The plan was
+  written against a hypothetical CLI shape. Real Claude CLI v2 takes
+  `--plugin-dir <path>`, repeatable. `app/services/claude_service.py` builds
+  the right command — don't re-introduce the old flag from the plan text.
+- **`--dangerously-skip-permissions` is the real bypass; `--allow-dangerously-skip-permissions`
+  only EXPOSES the option as available.** The spawner uses the former because
+  there's no human to approve curl/Bash tool calls inside the subprocess.
+- **Subprocess.Popen on Windows needs `.cmd` shim.** npm-installed CLIs ship as
+  `claude`, `claude.cmd`, `claude.ps1`. Bare `subprocess.Popen(['claude'])`
+  fails with `WinError 2`. Resolved via `shutil.which()` in
+  `claude_service._resolve_claude_binary()` — don't bypass it.
+- **Slash commands in Claude CLI `-p` print mode do NOT resolve as commands.**
+  Discovered during smoke test: `claude -p "/jobhunter:job-score ..."` echoes
+  back `Unknown command`. Slash commands are an interactive-mode feature.
+  Production-grade skill invocation needs either:
+  (a) the Claude Agent SDK in-process inside FastAPI, OR
+  (b) `--append-system-prompt-file <skill.md>` + the args as the prompt body, OR
+  (c) feed the SKILL.md content as the system prompt and the args as the user
+      message verbatim.
+  Until one of these lands, `/job-score`, `/cv-tailor`, and `/cold-email`
+  cannot be triggered end-to-end. Tracking as Phase 24 follow-up.
+- **Plugin dir layout MUST follow Claude conventions:**
+  `<dir>/.claude-plugin/plugin.json` manifest + `<dir>/skills/<name>/SKILL.md`
+  with YAML frontmatter (`name:`, `description:`). Flat `skills/<name>.md`
+  files are silently ignored by `--plugin-dir`.
+
+### .env / settings
+
+- **`Settings()` ignores extra env keys (`extra="ignore"`).** Same `.env` is
+  shared with the frontend (`NEXT_PUBLIC_API_URL`) and docker-compose
+  (`POSTGRES_PASSWORD`). Without `extra="ignore"` in `app/config.py`, those
+  keys crash backend startup with `Extra inputs are not permitted`.
+- **Pydantic-settings reads `.env` from CWD, not project root.** Run scripts
+  from `backend/` or copy `.env` into `backend/.env` (gitignored, safe).
 
 ### Frontend
 

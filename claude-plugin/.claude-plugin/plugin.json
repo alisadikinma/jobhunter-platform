@@ -1,0 +1,8 @@
+{
+  "name": "jobhunter",
+  "description": "Skills invoked by JobHunter FastAPI subprocess to score jobs, tailor CVs, and draft cold emails. Each skill calls back to FastAPI via X-Callback-Secret-protected HTTP routes.",
+  "version": "0.1.0",
+  "author": {
+    "name": "Ali Sadikin"
+  }
+}

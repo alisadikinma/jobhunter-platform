@@ -42,7 +42,9 @@ class Settings(BaseSettings):
     ADMIN_EMAIL: str = "admin@example.com"
     ADMIN_PASSWORD: str = "change-me"
 
-    model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
+    # extra="ignore" so the same .env can hold frontend (NEXT_PUBLIC_*) and
+    # docker-compose (POSTGRES_PASSWORD) vars without crashing the API.
+    model_config = {"env_file": ".env", "env_file_encoding": "utf-8", "extra": "ignore"}
 
     @model_validator(mode="after")
     def _forbid_default_secrets_outside_dev(self):

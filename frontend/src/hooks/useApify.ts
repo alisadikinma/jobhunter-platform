@@ -13,6 +13,7 @@ export type ApifyAccount = {
   status: string;
   monthly_credit_usd: number;
   credit_used_usd: number;
+  cooldown_until: string | null;
   last_used_at: string | null;
   last_success_at: string | null;
   consecutive_failures: number;
@@ -66,6 +67,15 @@ export function useDeleteApify() {
     mutationFn: async (id: number) => {
       await api.delete(`/api/apify/accounts/${id}`);
     },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["apify"] }),
+  });
+}
+
+export function useReactivateApify() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: number) =>
+      (await api.post<ApifyAccount>(`/api/apify/accounts/${id}/reactivate`)).data,
     onSuccess: () => qc.invalidateQueries({ queryKey: ["apify"] }),
   });
 }

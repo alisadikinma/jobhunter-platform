@@ -150,3 +150,24 @@ def test_connection(
         return ApifyTestResult(ok=True, message=f"Connected as {username}")
     except Exception as e:
         return ApifyTestResult(ok=False, message=str(e))
+
+
+@router.post("/accounts/{account_id}/reactivate", response_model=ApifyAccountResponse)
+def reactivate_account(
+    account_id: int,
+    db: Session = Depends(get_db),
+    _current: User = Depends(get_current_user),
+):
+    """Flip suspended/exhausted -> active and clear failure counters."""
+    account = db.get(ApifyAccount, account_id)
+    if account is None:
+        raise HTTPException(status_code=404, detail="Account not found")
+
+    account.status = "active"
+    account.consecutive_failures = 0
+    account.cooldown_until = None
+    account.exhausted_at = None
+    account.last_error = None
+    db.commit()
+    db.refresh(account)
+    return _to_response(account)

@@ -12,8 +12,8 @@ export type FirecrawlAccount = {
   token_masked: string;
   priority: number;
   status: string; // active | exhausted | suspended
-  monthly_credit_usd: string | number;
-  credit_used_usd: string | number;
+  monthly_credits: number;
+  credits_used: number;
   cooldown_until: string | null;
   last_used_at: string | null;
   last_success_at: string | null;
@@ -45,7 +45,7 @@ export function useCreateFirecrawlAccount() {
       email?: string;
       api_url: string;
       api_token?: string;
-      monthly_credit_usd?: number;
+      monthly_credits?: number;
     }) =>
       (await api.post<FirecrawlAccount>("/api/firecrawl/accounts", body)).data,
     onSuccess: () => qc.invalidateQueries({ queryKey: ["firecrawl"] }),
@@ -76,6 +76,16 @@ export function useTestFirecrawl() {
   return useMutation({
     mutationFn: async (id: number) =>
       (await api.post<FirecrawlTestResult>(`/api/firecrawl/accounts/${id}/test`)).data,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["firecrawl"] }),
+  });
+}
+
+export function useReactivateFirecrawl() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: number) =>
+      (await api.post<FirecrawlAccount>(`/api/firecrawl/accounts/${id}/reactivate`))
+        .data,
     onSuccess: () => qc.invalidateQueries({ queryKey: ["firecrawl"] }),
   });
 }

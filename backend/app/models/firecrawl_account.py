@@ -1,4 +1,4 @@
-from sqlalchemy import Column, DateTime, Index, Integer, Numeric, String, Text
+from sqlalchemy import Column, DateTime, Index, Integer, String, Text
 from sqlalchemy.sql import func
 
 from app.database import Base
@@ -12,7 +12,9 @@ class FirecrawlAccount(Base):
     Each row holds an api_url (so we can mix self-hosted + SaaS) plus
     a Fernet-encrypted api_token.
 
-    monthly_credit_usd=0 means "unlimited" (self-hosted Firecrawl).
+    `monthly_credits` is an INTEGER (1 page = 1 credit on Firecrawl
+    standard). Free-tier sign-up grants 525. `monthly_credits=0` means
+    "unlimited" (self-hosted).
     """
 
     __tablename__ = "firecrawl_accounts"
@@ -26,8 +28,8 @@ class FirecrawlAccount(Base):
     priority = Column(Integer, server_default="100")
     status = Column(String(20), server_default="active")
 
-    monthly_credit_usd = Column(Numeric(10, 2), server_default="0.50")
-    credit_used_usd = Column(Numeric(10, 2), server_default="0.00")
+    monthly_credits = Column(Integer, nullable=False, server_default="525")
+    credits_used = Column(Integer, nullable=False, server_default="0")
     quota_reset_at = Column(DateTime(timezone=True))
     exhausted_at = Column(DateTime(timezone=True))
 

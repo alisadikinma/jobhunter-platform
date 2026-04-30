@@ -1,5 +1,4 @@
 from datetime import datetime
-from decimal import Decimal
 
 from pydantic import BaseModel, Field
 
@@ -29,7 +28,7 @@ class FirecrawlAccountCreate(BaseModel):
     api_url: str = Field(min_length=1, max_length=500, default="https://api.firecrawl.dev")
     api_token: str = Field(default="", max_length=500)
     priority: int = 100
-    monthly_credit_usd: Decimal = Decimal("0.50")
+    monthly_credits: int = Field(default=525, ge=0)
     notes: str | None = None
 
 
@@ -39,7 +38,7 @@ class FirecrawlAccountUpdate(BaseModel):
     api_url: str | None = None
     priority: int | None = None
     status: str | None = None
-    monthly_credit_usd: Decimal | None = None
+    monthly_credits: int | None = None
     notes: str | None = None
 
 
@@ -57,8 +56,8 @@ class FirecrawlAccountResponse(BaseModel):
     token_masked: str
     priority: int
     status: str
-    monthly_credit_usd: Decimal
-    credit_used_usd: Decimal
+    monthly_credits: int
+    credits_used: int
     cooldown_until: datetime | None
     last_used_at: datetime | None
     last_success_at: datetime | None

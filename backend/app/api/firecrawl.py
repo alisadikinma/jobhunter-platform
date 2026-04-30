@@ -36,8 +36,8 @@ def _to_response(account: FirecrawlAccount) -> FirecrawlAccountResponse:
         token_masked=token_masked,
         priority=account.priority,
         status=account.status,
-        monthly_credit_usd=account.monthly_credit_usd,
-        credit_used_usd=account.credit_used_usd,
+        monthly_credits=account.monthly_credits,
+        credits_used=account.credits_used,
         cooldown_until=account.cooldown_until,
         last_used_at=account.last_used_at,
         last_success_at=account.last_success_at,
@@ -77,7 +77,7 @@ def create_account(
         api_url=body.api_url,
         api_token=encrypt_token(body.api_token) if body.api_token else "",
         priority=body.priority,
-        monthly_credit_usd=body.monthly_credit_usd,
+        monthly_credits=body.monthly_credits,
         notes=body.notes,
     )
     db.add(account)
@@ -163,3 +163,24 @@ def test_connection(
 ):
     ok, message, sample_chars = firecrawl_service.test_account_connection(db, account_id)
     return FirecrawlTestResult(ok=ok, message=message, sample_chars=sample_chars)
+
+
+@router.post("/accounts/{account_id}/reactivate", response_model=FirecrawlAccountResponse)
+def reactivate_account(
+    account_id: int,
+    db: Session = Depends(get_db),
+    _current: User = Depends(get_current_user),
+):
+    """Flip suspended/exhausted -> active and clear failure counters."""
+    account = db.get(FirecrawlAccount, account_id)
+    if account is None:
+        raise HTTPException(status_code=404, detail="Account not found")
+
+    account.status = "active"
+    account.consecutive_failures = 0
+    account.cooldown_until = None
+    account.exhausted_at = None
+    account.last_error = None
+    db.commit()
+    db.refresh(account)
+    return _to_response(account)

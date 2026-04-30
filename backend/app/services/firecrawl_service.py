@@ -20,7 +20,6 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
-from decimal import Decimal
 from typing import Any
 
 import httpx
@@ -37,8 +36,8 @@ log = logging.getLogger(__name__)
 COOLDOWN_AFTER_RATE_LIMIT = timedelta(hours=1)
 MAX_CONSECUTIVE_FAILURES = 3
 MAX_POOL_RETRIES = 3
-SAFETY_MARGIN = Decimal("1.2")
-DEFAULT_COST_PER_SCRAPE = Decimal("0.001")  # 1 credit / page on Firecrawl SaaS
+SAFETY_MARGIN_CREDITS = 5  # require at least 5 credits headroom
+DEFAULT_CREDITS_PER_SCRAPE = 1  # 1 page = 1 credit on Firecrawl standard
 
 
 class FirecrawlPoolExhausted(RuntimeError):
@@ -68,14 +67,18 @@ def _env_fallback() -> _ResolvedConfig:
     )
 
 
-def acquire_account(db: Session, *, estimated_cost_usd: Decimal = DEFAULT_COST_PER_SCRAPE) -> FirecrawlAccount:
+def acquire_account(
+    db: Session,
+    *,
+    estimated_credits: int = DEFAULT_CREDITS_PER_SCRAPE,
+) -> FirecrawlAccount:
     """Reserve an account under row-level lock. Caller commits/rollbacks.
 
-    Picks the lowest-priority, oldest-used active account that has budget
-    (with 20% safety margin) for the cost. Accounts with
-    `monthly_credit_usd=0` are treated as unlimited (self-hosted).
+    Picks the lowest-priority, oldest-used active account with budget for
+    `estimated_credits + SAFETY_MARGIN_CREDITS`. Accounts with
+    `monthly_credits=0` are treated as unlimited (self-hosted).
     """
-    budget = estimated_cost_usd * SAFETY_MARGIN
+    budget = estimated_credits + SAFETY_MARGIN_CREDITS
 
     stmt = (
         select(FirecrawlAccount)
@@ -85,9 +88,8 @@ def acquire_account(db: Session, *, estimated_cost_usd: Decimal = DEFAULT_COST_P
             | (FirecrawlAccount.cooldown_until <= _utcnow())
         )
         .where(
-            # Either unlimited (monthly_credit_usd <= 0) or has budget
-            (FirecrawlAccount.monthly_credit_usd <= 0)
-            | (FirecrawlAccount.credit_used_usd + budget <= FirecrawlAccount.monthly_credit_usd)
+            (FirecrawlAccount.monthly_credits == 0)
+            | (FirecrawlAccount.credits_used + budget <= FirecrawlAccount.monthly_credits)
         )
         .order_by(
             FirecrawlAccount.priority.asc(),
@@ -99,7 +101,7 @@ def acquire_account(db: Session, *, estimated_cost_usd: Decimal = DEFAULT_COST_P
     account = db.execute(stmt).scalar_one_or_none()
     if account is None:
         raise FirecrawlPoolExhausted(
-            f"No active Firecrawl account has budget for ${estimated_cost_usd}"
+            f"No active Firecrawl account has budget for {estimated_credits} credits"
         )
 
     account.last_used_at = _utcnow()
@@ -112,14 +114,14 @@ def record_usage(
     account_id: int,
     *,
     status: str,
-    cost_usd: Decimal = DEFAULT_COST_PER_SCRAPE,
+    credits_used: int = DEFAULT_CREDITS_PER_SCRAPE,
     error_message: str | None = None,
 ) -> None:
     """Advance the account's state machine after a scrape attempt.
 
     status:
-        success        — credit deducted, last_success_at updated
-        rate_limited   — credit deducted, 1h cooldown
+        success        — credits deducted, last_success_at updated
+        rate_limited   — credits deducted, 1h cooldown
         quota_exceeded — account marked exhausted immediately
         failure        — consecutive_failures++; at MAX, account suspended
     """
@@ -128,10 +130,9 @@ def record_usage(
         return
 
     now = _utcnow()
-    cost = cost_usd
 
     if status in {"success", "rate_limited"}:
-        account.credit_used_usd = (account.credit_used_usd or Decimal("0")) + cost
+        account.credits_used = (account.credits_used or 0) + credits_used
 
     if status == "success":
         account.consecutive_failures = 0
@@ -150,10 +151,10 @@ def record_usage(
         if account.consecutive_failures >= MAX_CONSECUTIVE_FAILURES:
             account.status = "suspended"
 
-    # Margin-of-safety: drop to exhausted when budget nearly gone.
-    if account.monthly_credit_usd and account.monthly_credit_usd > 0:
-        remaining = account.monthly_credit_usd - (account.credit_used_usd or Decimal("0"))
-        if remaining < Decimal("0.05") and account.status == "active":
+    # Drop to exhausted when fewer than 5 credits remain.
+    if account.monthly_credits and account.monthly_credits > 0:
+        remaining = account.monthly_credits - (account.credits_used or 0)
+        if remaining < SAFETY_MARGIN_CREDITS and account.status == "active":
             account.status = "exhausted"
             account.exhausted_at = now
 

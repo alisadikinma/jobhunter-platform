@@ -33,4 +33,42 @@
   .input {
     @apply w-full rounded-button border border-neutral-700 bg-neutral-900 px-3 py-1.5 text-sm placeholder:text-neutral-500 focus:border-brand-blue focus:outline-none;
   }
+  .chip {
+    @apply inline-flex items-center gap-1.5 rounded-full bg-neutral-800/80 px-2.5 py-1 text-xs text-neutral-300;
+  }
+  .chip-removable {
+    @apply chip cursor-pointer transition-colors hover:bg-neutral-700;
+  }
+  .row-press {
+    @apply transition-[background-color,transform] duration-150 active:scale-[0.998];
+  }
+}
+
+@layer utilities {
+  .skeleton {
+    background-image: linear-gradient(
+      90deg,
+      rgb(38 38 38) 0%,
+      rgb(64 64 64) 50%,
+      rgb(38 38 38) 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.4s ease-in-out infinite;
+  }
+  @keyframes shimmer {
+    0% { background-position: 200% 0; }
+    100% { background-position: -200% 0; }
+  }
+  /* Body prose for job description / cold-email preview — mimics @tailwindcss/typography
+     subset without pulling the plugin dep in. */
+  .prose-jh p {
+    @apply text-[0.95rem] leading-7 text-neutral-300;
+    margin-block: 0.6em;
+  }
+  .prose-jh p:first-child { margin-top: 0; }
+  .prose-jh p:last-child { margin-bottom: 0; }
+  .prose-jh strong { @apply font-semibold text-neutral-100; }
+  .prose-jh em { @apply italic; }
+  .prose-jh ul { @apply ml-4 list-disc space-y-1; }
+  .prose-jh a { @apply text-brand-blue underline-offset-2 hover:underline; }
 }

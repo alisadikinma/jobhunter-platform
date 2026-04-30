@@ -1,5 +1,6 @@
 "use client";
 
+import { ArrowRight, Sparkles } from "lucide-react";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 
@@ -7,6 +8,8 @@ import { StatsCards } from "@/components/dashboard/StatsCards";
 import { WeeklyChart } from "@/components/dashboard/WeeklyChart";
 import { useJobStats } from "@/hooks/useStats";
 import { api } from "@/lib/api";
+import { variantLabel } from "@/lib/format";
+import { variantBadgeClass } from "@/lib/utils";
 
 type RecentJob = {
   id: number;
@@ -16,14 +19,12 @@ type RecentJob = {
   suggested_variant: string | null;
 };
 
-type JobListResponse = {
-  items: RecentJob[];
-  total: number;
-};
+type JobListResponse = { items: RecentJob[]; total: number };
+
+const VARIANTS = ["vibe_coding", "ai_automation", "ai_video"] as const;
 
 export default function DashboardPage() {
   const jobStats = useJobStats();
-
   const recent = useQuery({
     queryKey: ["jobs", "recent-high-score"],
     queryFn: async () =>
@@ -35,50 +36,89 @@ export default function DashboardPage() {
   });
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-2xl font-semibold">Dashboard</h1>
+    <div className="mx-auto max-w-7xl space-y-5">
+      <header className="flex items-end justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
+          <p className="text-sm text-neutral-500">Pipeline at a glance.</p>
+        </div>
+        <Link href="/jobs" className="btn-ghost text-xs">
+          Browse jobs
+          <ArrowRight className="h-3.5 w-3.5" strokeWidth={1.75} />
+        </Link>
+      </header>
 
       <StatsCards />
 
-      <section className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+      {/* Bottom slab: chart 2/3 + variant breakdown 1/3 (asymmetric). */}
+      <section className="grid grid-cols-1 gap-3 lg:grid-cols-3">
         <div className="lg:col-span-2">
           <WeeklyChart />
         </div>
 
         <div className="card">
-          <h2 className="mb-2 text-sm font-medium text-neutral-300">
-            Jobs by Variant
-          </h2>
-          <VariantRow
-            variant="vibe_coding"
-            count={jobStats.data?.by_variant?.vibe_coding ?? 0}
-          />
-          <VariantRow
-            variant="ai_automation"
-            count={jobStats.data?.by_variant?.ai_automation ?? 0}
-          />
-          <VariantRow
-            variant="ai_video"
-            count={jobStats.data?.by_variant?.ai_video ?? 0}
-          />
+          <div className="mb-3 flex items-baseline justify-between">
+            <h2 className="text-sm font-medium text-neutral-200">By variant</h2>
+            <span className="text-[11px] text-neutral-500">scraped</span>
+          </div>
+          <ul className="space-y-1">
+            {VARIANTS.map((v) => {
+              const count = jobStats.data?.by_variant?.[v] ?? 0;
+              const total = jobStats.data?.total ?? 0;
+              const pct = total > 0 ? Math.round((count / total) * 100) : 0;
+              return (
+                <li key={v} className="space-y-1.5 py-1.5">
+                  <div className="flex items-center justify-between text-sm">
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-[11px] ${variantBadgeClass(v)}`}
+                    >
+                      {variantLabel(v)}
+                    </span>
+                    <span className="font-mono text-xs text-neutral-400">
+                      {count} <span className="text-neutral-600">· {pct}%</span>
+                    </span>
+                  </div>
+                  <div className="h-1 overflow-hidden rounded-full bg-neutral-800">
+                    <div
+                      className={`h-full ${variantFillClass(v)}`}
+                      style={{ width: `${pct}%` }}
+                    />
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
         </div>
       </section>
 
-      <section className="card">
-        <h2 className="mb-3 text-sm font-medium text-neutral-300">
-          Recent High-Score Jobs (≥80)
-        </h2>
+      {/* Recent high-score row */}
+      <section className="card space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="flex items-center gap-2 text-sm font-medium text-neutral-200">
+            <Sparkles className="h-3.5 w-3.5 text-brand-orange" strokeWidth={1.75} />
+            Top scored (≥80)
+          </h2>
+          <Link
+            href="/jobs?min_score=80"
+            className="text-xs text-neutral-500 hover:text-brand-blue"
+          >
+            view all →
+          </Link>
+        </div>
+
         {recent.isLoading ? (
-          <div className="text-sm text-neutral-500">Loading…</div>
+          <RecentSkeleton />
         ) : (recent.data?.items ?? []).length === 0 ? (
-          <div className="text-sm text-neutral-500">
-            No high-score jobs yet — trigger a scrape from the Jobs page.
+          <div className="py-8 text-center text-sm text-neutral-500">
+            No jobs scored ≥80 yet — run{" "}
+            <code className="font-mono text-xs text-neutral-300">/jobhunter:job-score</code>{" "}
+            from a Claude session to populate.
           </div>
         ) : (
-          <ul className="divide-y divide-neutral-800">
+          <ul className="divide-y divide-neutral-800/60">
             {(recent.data?.items ?? []).map((j) => (
-              <li key={j.id} className="flex items-center justify-between py-2">
-                <div className="min-w-0 flex-1 pr-4">
+              <li key={j.id} className="flex items-center justify-between gap-3 py-2.5">
+                <div className="min-w-0 flex-1">
                   <Link
                     href={`/jobs/${j.id}`}
                     className="block truncate text-sm font-medium hover:text-brand-blue"
@@ -87,10 +127,14 @@ export default function DashboardPage() {
                   </Link>
                   <div className="truncate text-xs text-neutral-500">
                     {j.company_name ?? "—"}
-                    {j.suggested_variant ? ` · ${j.suggested_variant}` : ""}
+                    {j.suggested_variant ? (
+                      <span className="ml-2 text-neutral-600">
+                        · {variantLabel(j.suggested_variant)}
+                      </span>
+                    ) : null}
                   </div>
                 </div>
-                <span className="ml-2 rounded-full bg-emerald-500/15 px-2 py-0.5 font-mono text-xs text-emerald-400">
+                <span className="rounded-full bg-emerald-500/15 px-2 py-0.5 font-mono text-xs font-medium text-emerald-300">
                   {j.relevance_score}
                 </span>
               </li>
@@ -102,19 +146,31 @@ export default function DashboardPage() {
   );
 }
 
-function VariantRow({ variant, count }: { variant: string; count: number }) {
-  const colors: Record<string, string> = {
-    vibe_coding: "bg-variant-vibe",
-    ai_automation: "bg-variant-automation",
-    ai_video: "bg-variant-video",
-  };
+function variantFillClass(variant: string): string {
+  switch (variant) {
+    case "vibe_coding":
+      return "bg-variant-vibe";
+    case "ai_automation":
+      return "bg-variant-automation";
+    case "ai_video":
+      return "bg-variant-video";
+    default:
+      return "bg-neutral-600";
+  }
+}
+
+function RecentSkeleton() {
   return (
-    <div className="flex items-center justify-between border-b border-neutral-800 py-2 last:border-0">
-      <div className="flex items-center gap-2">
-        <span className={`h-2 w-2 rounded-full ${colors[variant]}`} />
-        <span className="text-sm">{variant.replace("_", " ")}</span>
-      </div>
-      <span className="font-mono text-sm">{count}</span>
-    </div>
+    <ul className="divide-y divide-neutral-800/60">
+      {[0, 1, 2, 3].map((i) => (
+        <li key={i} className="flex items-center justify-between gap-3 py-2.5">
+          <div className="flex-1 space-y-1.5">
+            <div className="h-3.5 w-1/2 rounded skeleton" />
+            <div className="h-3 w-1/3 rounded skeleton" />
+          </div>
+          <div className="h-5 w-9 rounded-full skeleton" />
+        </li>
+      ))}
+    </ul>
   );
 }

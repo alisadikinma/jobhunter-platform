@@ -10,6 +10,14 @@ COPY . .
 # Ensure public/ exists even when git doesn't track an empty dir — the runner
 # stage COPYs /app/public unconditionally, so a missing dir fails the build.
 RUN mkdir -p public
+# NEXT_PUBLIC_* vars are baked into the client bundle at build time. The
+# `args:` block in docker-compose.yml passes the production URL, but it must
+# be ARG'd here so Docker exposes it to the build, then ENV'd so Next.js
+# substitutes process.env.NEXT_PUBLIC_API_URL inside the bundle. Without this
+# the fallback `http://localhost:8000` ships to browsers and POST /api/auth/login
+# fails as mixed-content from an https page.
+ARG NEXT_PUBLIC_API_URL=http://localhost:8000
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 ENV NEXT_TELEMETRY_DISABLED=1
 RUN npm run build
 

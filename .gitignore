@@ -58,3 +58,37 @@ smoke-*.png
 
 # Next.js generated
 frontend/next-env.d.ts
+
+# ====================================
+# Temporary & Build Files
+# ====================================
+
+# Logs
+*.log
+
+# Temp files
+*.tmp
+*.temp
+*.bak
+*.swp
+*.swo
+*~
+
+# Compiled files
+*.com
+*.class
+*.dll
+*.exe
+*.o
+*.so
+
+# Archives
+*.7z
+*.dmg
+*.gz
+*.iso
+*.jar
+*.rar
+*.tar
+*.zip
+*.mcp.json

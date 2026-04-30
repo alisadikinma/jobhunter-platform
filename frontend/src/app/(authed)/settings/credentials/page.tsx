@@ -11,9 +11,10 @@ import {
   useTestApify,
 } from "@/hooks/useApify";
 import {
+  useBulkCreateFirecrawl,
+  useCreateFirecrawlAccount,
   useDeleteFirecrawl,
-  useFirecrawlConfig,
-  useSaveFirecrawlConfig,
+  useFirecrawlAccounts,
   useTestFirecrawl,
 } from "@/hooks/useFirecrawl";
 import {
@@ -463,170 +464,227 @@ function ApifyStatusBadge({ status }: { status: string }) {
   );
 }
 
-// ---- Firecrawl section ------------------------------------------------------
-
-type FirecrawlFormState = {
-  api_url: string;
-  api_key: string;
-  timeout_s: number;
-};
-
-const _FIRECRAWL_DEFAULTS: FirecrawlFormState = {
-  api_url: "https://api.firecrawl.dev",
-  api_key: "",
-  timeout_s: 60,
-};
+// ---- Firecrawl pool section -------------------------------------------------
 
 function FirecrawlSection({ open, onToggle }: SectionProps) {
-  const { data, isLoading } = useFirecrawlConfig();
-  const save = useSaveFirecrawlConfig();
-  const test = useTestFirecrawl();
+  const { data, isLoading } = useFirecrawlAccounts();
+  const create = useCreateFirecrawlAccount();
+  const bulk = useBulkCreateFirecrawl();
   const del = useDeleteFirecrawl();
-  const [form, setForm] = useState<FirecrawlFormState>(_FIRECRAWL_DEFAULTS);
-  const [error, setError] = useState<string | null>(null);
+  const test = useTestFirecrawl();
+  const [bulkText, setBulkText] = useState("");
 
-  useEffect(() => {
-    if (!data) return;
-    setForm((prev) => ({
-      ...prev,
-      api_url: data.api_url,
-      api_key: "",
-      timeout_s: data.timeout_s,
-    }));
-  }, [data]);
-
-  const hasKey = !!data?.api_key_masked;
-  const isActive = !!data?.is_active;
-  const isSelfHosted =
-    form.api_url.includes("firecrawl-api") ||
-    form.api_url.startsWith("http://localhost") ||
-    form.api_url.startsWith("http://127");
-
-  async function onSave() {
-    setError(null);
-    try {
-      await save.mutateAsync({
-        api_url: form.api_url,
-        api_key: form.api_key || null,
-        timeout_s: form.timeout_s,
-      });
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Save failed");
-    }
-  }
-
-  async function onTest() {
-    setError(null);
-    try {
-      const r = await test.mutateAsync();
-      setError(r.ok ? null : r.message);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Test failed");
-    }
-  }
+  const active = (data ?? []).filter((a) => a.status === "active").length;
+  const total = (data ?? []).length;
+  const totalCredit = (data ?? []).reduce(
+    (sum, a) => sum + Number(a.monthly_credit_usd ?? 0) - Number(a.credit_used_usd ?? 0),
+    0,
+  );
 
   return (
     <Accordion
       open={open}
       onToggle={onToggle}
       icon={<Flame className="h-4 w-4 text-brand-orange" strokeWidth={1.75} />}
-      title="Firecrawl"
-      subtitle="JD + company-page enrichment. Self-hosted (no key) or SaaS (api.firecrawl.dev)."
+      title="Firecrawl Pool"
+      subtitle="Multi-account JD + company enrichment. Pool rotates when one account hits its credit cap."
       status={
-        isActive
-          ? { label: "Active", tone: "ok" }
-          : hasKey || isSelfHosted
-            ? { label: "Saved (untested)", tone: "warn" }
-            : { label: "Not configured", tone: "off" }
+        total === 0
+          ? { label: "No accounts", tone: "off" }
+          : active < 1
+            ? { label: `${active}/${total} active`, tone: "warn" }
+            : { label: `${active}/${total} active`, tone: "ok" }
       }
     >
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+        <form
+          onSubmit={async (e) => {
+            e.preventDefault();
+            const f = e.currentTarget;
+            const label = (f.elements.namedItem("label") as HTMLInputElement).value;
+            const apiUrl = (f.elements.namedItem("api_url") as HTMLInputElement).value;
+            const token = (f.elements.namedItem("token") as HTMLInputElement).value;
+            const email = (f.elements.namedItem("email") as HTMLInputElement).value;
+            const credit = Number(
+              (f.elements.namedItem("credit") as HTMLInputElement).value || 0.5,
+            );
+            await create.mutateAsync({
+              label,
+              email,
+              api_url: apiUrl,
+              api_token: token,
+              monthly_credit_usd: credit,
+            });
+            f.reset();
+          }}
+          className="space-y-2 rounded-card border border-neutral-800 p-3"
+        >
+          <h3 className="text-[11px] font-medium uppercase tracking-wider text-neutral-500">
+            Add account
+          </h3>
+          <input
+            className="input"
+            name="label"
+            placeholder="Label (e.g. firecrawl01)"
+            required
+          />
+          <input
+            className="input"
+            name="api_url"
+            placeholder="API URL (https://api.firecrawl.dev)"
+            defaultValue="https://api.firecrawl.dev"
+            required
+          />
+          <input className="input font-mono text-xs" name="token" placeholder="API token (fc-...)" />
+          <input
+            className="input"
+            name="email"
+            placeholder="Login email (optional)"
+            type="email"
+          />
+          <input
+            className="input"
+            name="credit"
+            placeholder="Monthly credit USD (0 = unlimited)"
+            type="number"
+            step="0.01"
+            defaultValue="0.50"
+          />
+          <button className="btn-primary w-full" disabled={create.isPending}>
+            {create.isPending ? "Adding…" : "Add"}
+          </button>
+        </form>
+
+        <div className="space-y-2 rounded-card border border-neutral-800 p-3">
+          <h3 className="text-[11px] font-medium uppercase tracking-wider text-neutral-500">
+            Bulk import
+          </h3>
+          <p className="text-xs text-neutral-500">
+            One per line:{" "}
+            <code className="font-mono">label,api_url,token[,email]</code>
+            <br />
+            Self-hosted? Use api_url <code className="font-mono">http://firecrawl-api:3002</code>{" "}
+            with empty token.
+          </p>
+          <textarea
+            className="input min-h-[110px] font-mono text-xs"
+            value={bulkText}
+            onChange={(e) => setBulkText(e.target.value)}
+            placeholder="firecrawl01,https://api.firecrawl.dev,fc-abc..."
+          />
+          <button
+            onClick={async () => {
+              const lines = bulkText.split("\n").map((l) => l.trim()).filter(Boolean);
+              if (lines.length > 0) {
+                await bulk.mutateAsync(lines);
+                setBulkText("");
+              }
+            }}
+            className="btn-primary w-full"
+            disabled={bulk.isPending}
+          >
+            {bulk.isPending ? "Importing…" : "Import"}
+          </button>
+        </div>
+      </div>
+
+      <div className="mt-4 text-xs text-neutral-500">
+        ${totalCredit.toFixed(2)} remaining across {total} account{total === 1 ? "" : "s"}
+      </div>
+
       {isLoading ? (
-        <div className="text-sm text-neutral-500">Loading…</div>
+        <div className="mt-3 text-sm text-neutral-500">Loading…</div>
       ) : (
-        <>
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-[2fr_1fr]">
-            <Field
-              label="API URL"
-              hint={
-                isSelfHosted
-                  ? "Self-hosted detected — API key optional."
-                  : 'SaaS endpoint. Get a key at firecrawl.dev → "API keys".'
-              }
-            >
-              <input
-                className="input"
-                value={form.api_url}
-                onChange={(e) => setForm({ ...form, api_url: e.target.value })}
-                placeholder="https://api.firecrawl.dev"
-              />
-            </Field>
-            <Field label="Timeout (s)">
-              <input
-                type="number"
-                className="input"
-                value={form.timeout_s}
-                onChange={(e) => setForm({ ...form, timeout_s: Number(e.target.value) })}
-              />
-            </Field>
-          </div>
-
-          <div className="mt-3">
-            <Field
-              label="API key"
-              hint={
-                hasKey
-                  ? "Leave blank to keep existing"
-                  : isSelfHosted
-                    ? "Optional for self-hosted Firecrawl"
-                    : "Required for SaaS — fc-..."
-              }
-            >
-              <input
-                className="input font-mono text-xs"
-                type="password"
-                value={form.api_key}
-                onChange={(e) => setForm({ ...form, api_key: e.target.value })}
-                placeholder={hasKey ? "••••••••" : "fc-..."}
-                autoComplete="new-password"
-              />
-            </Field>
-          </div>
-
-          <div className="mt-4 flex items-center gap-2">
-            <button onClick={onSave} disabled={save.isPending} className="btn-primary">
-              {save.isPending ? "Saving…" : "Save"}
-            </button>
-            <button
-              onClick={onTest}
-              disabled={test.isPending || (!hasKey && !isSelfHosted)}
-              className="btn-ghost"
-              title="Live scrape against example.com to verify creds"
-            >
-              {test.isPending ? "Testing…" : "Test connection"}
-            </button>
-            {(hasKey || data?.api_url) && (
-              <button
-                onClick={() => {
-                  if (confirm("Remove Firecrawl credentials?")) del.mutate();
-                }}
-                className="btn-ghost ml-auto text-red-400"
-              >
-                Remove
-              </button>
-            )}
-          </div>
-
-          {data?.last_test_at && (
-            <div className="mt-3 text-xs text-neutral-500">
-              Last test {new Date(data.last_test_at).toLocaleString()} ·{" "}
-              <span className={data.last_test_status === "ok" ? "text-emerald-400" : "text-red-400"}>
-                {data.last_test_status}
-              </span>
-              {data.last_test_message && <> · {data.last_test_message}</>}
-            </div>
-          )}
-          {error && <div className="mt-3 text-sm text-red-400">{error}</div>}
-        </>
+        <div className="mt-3 overflow-hidden rounded-card border border-neutral-800">
+          <table className="w-full text-sm">
+            <thead className="bg-neutral-900 text-[11px] uppercase tracking-wider text-neutral-500">
+              <tr>
+                <th className="px-3 py-2 text-left">Label</th>
+                <th className="px-3 py-2 text-left">API URL</th>
+                <th className="px-3 py-2 text-left">Status</th>
+                <th className="px-3 py-2 text-left">Credit</th>
+                <th className="px-3 py-2 text-left">Last used</th>
+                <th className="px-3 py-2"></th>
+              </tr>
+            </thead>
+            <tbody>
+              {(data ?? []).map((a) => {
+                const used = Number(a.credit_used_usd ?? 0);
+                const max = Number(a.monthly_credit_usd ?? 0);
+                const pct = max > 0 ? (used / max) * 100 : 0;
+                return (
+                  <tr key={a.id} className="border-t border-neutral-800">
+                    <td className="px-3 py-2 font-mono text-xs">{a.label}</td>
+                    <td
+                      className="max-w-[180px] truncate px-3 py-2 font-mono text-xs text-neutral-400"
+                      title={a.api_url}
+                    >
+                      {a.api_url}
+                    </td>
+                    <td className="px-3 py-2">
+                      <ApifyStatusBadge status={a.status} />
+                    </td>
+                    <td className="px-3 py-2">
+                      {max <= 0 ? (
+                        <span className="font-mono text-xs text-neutral-500">unlimited</span>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <div className="h-1.5 w-24 overflow-hidden rounded-full bg-neutral-800">
+                            <div
+                              className={cn(
+                                "h-full",
+                                pct >= 95
+                                  ? "bg-red-500"
+                                  : pct >= 80
+                                    ? "bg-amber-500"
+                                    : "bg-emerald-500",
+                              )}
+                              style={{ width: `${pct}%` }}
+                            />
+                          </div>
+                          <span className="font-mono text-xs">
+                            ${used.toFixed(2)}/${max.toFixed(2)}
+                          </span>
+                        </div>
+                      )}
+                    </td>
+                    <td className="px-3 py-2 text-xs text-neutral-500">
+                      {a.last_used_at ? new Date(a.last_used_at).toLocaleString() : "—"}
+                    </td>
+                    <td className="px-3 py-2">
+                      <div className="flex justify-end gap-1 text-xs">
+                        <button
+                          onClick={async () => {
+                            const r = await test.mutateAsync(a.id);
+                            alert(r.message);
+                          }}
+                          className="btn-ghost"
+                        >
+                          Test
+                        </button>
+                        <button
+                          onClick={() => {
+                            if (confirm(`Delete account ${a.label}?`)) del.mutate(a.id);
+                          }}
+                          className="btn-ghost text-red-400"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+              {(data ?? []).length === 0 && (
+                <tr>
+                  <td colSpan={6} className="p-6 text-center text-sm text-neutral-500">
+                    No accounts yet. Add one above or bulk-import.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       )}
     </Accordion>
   );

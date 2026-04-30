@@ -15,8 +15,9 @@ from app.services.firecrawl_service import FirecrawlService
 router = APIRouter(prefix="/api/enrichment", tags=["enrichment"])
 
 
-def _get_firecrawl() -> FirecrawlService:
-    return FirecrawlService()
+def _get_firecrawl(db: Session = Depends(get_db)) -> FirecrawlService:
+    """Inject DB so the service can rotate accounts from the pool."""
+    return FirecrawlService(db=db)
 
 
 @router.post("/job/{job_id}", response_model=EnrichmentResponse)

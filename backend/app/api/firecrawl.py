@@ -1,136 +1,165 @@
-"""CRUD for the singleton Firecrawl configuration.
-
-Mirrors the mailbox API shape: GET/PUT/DELETE/POST test. The Fernet-
-encrypted api_key is never echoed back — UI sees `api_key_masked`.
-"""
-from datetime import UTC, datetime
-
+"""Admin CRUD for the Firecrawl account pool — mirror of /api/apify."""
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.core.deps import get_current_user
 from app.database import get_db
-from app.models.firecrawl_config import FirecrawlConfig
+from app.models.firecrawl_account import FirecrawlAccount
 from app.models.user import User
 from app.schemas.firecrawl import (
-    FirecrawlConfigResponse,
-    FirecrawlConfigUpdate,
+    FirecrawlAccountBulkCreate,
+    FirecrawlAccountCreate,
+    FirecrawlAccountResponse,
+    FirecrawlAccountUpdate,
     FirecrawlTestResult,
 )
 from app.services import firecrawl_service
-from app.services.encryption import encrypt_token
+from app.services.encryption import decrypt_token, encrypt_token, mask_token
 
 router = APIRouter(prefix="/api/firecrawl", tags=["firecrawl"])
 
 
-def _to_response(row: FirecrawlConfig) -> FirecrawlConfigResponse:
-    return FirecrawlConfigResponse(
-        id=row.id,
-        api_url=row.api_url,
-        api_key_masked="********" if row.api_key_encrypted else "",
-        timeout_s=row.timeout_s,
-        is_active=row.is_active,
-        last_test_at=row.last_test_at,
-        last_test_status=row.last_test_status,
-        last_test_message=row.last_test_message,
-        created_at=row.created_at,
-        updated_at=row.updated_at,
+def _to_response(account: FirecrawlAccount) -> FirecrawlAccountResponse:
+    if account.api_token:
+        try:
+            plain = decrypt_token(account.api_token)
+            token_masked = mask_token(plain) if plain else ""
+        except Exception:
+            token_masked = "****"
+    else:
+        token_masked = ""
+    return FirecrawlAccountResponse(
+        id=account.id,
+        label=account.label,
+        email=account.email or "",
+        api_url=account.api_url,
+        token_masked=token_masked,
+        priority=account.priority,
+        status=account.status,
+        monthly_credit_usd=account.monthly_credit_usd,
+        credit_used_usd=account.credit_used_usd,
+        cooldown_until=account.cooldown_until,
+        last_used_at=account.last_used_at,
+        last_success_at=account.last_success_at,
+        consecutive_failures=account.consecutive_failures or 0,
+        last_error=account.last_error,
+        notes=account.notes,
+        created_at=account.created_at,
     )
 
 
-def _empty() -> FirecrawlConfig:
-    """Stub matching column server_defaults for first-render."""
-    now = datetime.now(UTC)
-    return FirecrawlConfig(
-        id=1,
-        api_url="https://api.firecrawl.dev",
-        api_key_encrypted="",
-        timeout_s=60,
-        is_active=False,
-        created_at=now,
-        updated_at=now,
+@router.get("/accounts", response_model=list[FirecrawlAccountResponse])
+def list_accounts(
+    db: Session = Depends(get_db),
+    _current: User = Depends(get_current_user),
+):
+    accounts = (
+        db.query(FirecrawlAccount)
+        .order_by(FirecrawlAccount.priority.asc(), FirecrawlAccount.id.asc())
+        .all()
     )
+    return [_to_response(a) for a in accounts]
 
 
-@router.get("/config", response_model=FirecrawlConfigResponse)
-def get_config(
+@router.post(
+    "/accounts",
+    response_model=FirecrawlAccountResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_account(
+    body: FirecrawlAccountCreate,
     db: Session = Depends(get_db),
     _current: User = Depends(get_current_user),
 ):
-    row = db.get(FirecrawlConfig, 1)
-    if row is None:
-        row = _empty()
-    return _to_response(row)
+    account = FirecrawlAccount(
+        label=body.label,
+        email=body.email,
+        api_url=body.api_url,
+        api_token=encrypt_token(body.api_token) if body.api_token else "",
+        priority=body.priority,
+        monthly_credit_usd=body.monthly_credit_usd,
+        notes=body.notes,
+    )
+    db.add(account)
+    db.commit()
+    db.refresh(account)
+    return _to_response(account)
 
 
-@router.put("/config", response_model=FirecrawlConfigResponse)
-def update_config(
-    body: FirecrawlConfigUpdate,
+@router.post(
+    "/accounts/bulk",
+    response_model=list[FirecrawlAccountResponse],
+    status_code=status.HTTP_201_CREATED,
+)
+def bulk_create(
+    body: FirecrawlAccountBulkCreate,
     db: Session = Depends(get_db),
     _current: User = Depends(get_current_user),
 ):
-    row = db.get(FirecrawlConfig, 1)
-    created = False
-    if row is None:
-        row = FirecrawlConfig(id=1)
-        db.add(row)
-        created = True
+    """One-shot import. Each line: `label,api_url,token[,email]`."""
+    created: list[FirecrawlAccount] = []
+    for raw in body.lines:
+        parts = [p.strip() for p in raw.split(",")]
+        if len(parts) < 3 or not parts[0] or not parts[1]:
+            raise HTTPException(
+                status_code=422,
+                detail=f"Invalid line (expected 'label,api_url,token[,email]'): {raw!r}",
+            )
+        label = parts[0]
+        api_url = parts[1]
+        token = parts[2] if len(parts) > 2 else ""
+        email = parts[3] if len(parts) > 3 else ""
 
-    row.api_url = body.api_url
-    row.timeout_s = body.timeout_s
-
-    if body.api_key:
-        row.api_key_encrypted = encrypt_token(body.api_key)
-    elif created and body.api_url.startswith("https://api.firecrawl.dev"):
-        # SaaS Firecrawl requires a key. Self-hosted (api_url like
-        # http://firecrawl-api:3002) typically doesn't, so we only error
-        # when the user is pointing at the hosted endpoint.
-        raise HTTPException(
-            status_code=422,
-            detail="api_key is required when targeting Firecrawl SaaS",
+        account = FirecrawlAccount(
+            label=label,
+            email=email,
+            api_url=api_url,
+            api_token=encrypt_token(token) if token else "",
         )
-
-    # Editing config invalidates any prior 'tested OK' state.
-    row.is_active = False
-    row.last_test_at = None
-    row.last_test_status = None
-    row.last_test_message = None
-
+        db.add(account)
+        created.append(account)
     db.commit()
-    db.refresh(row)
-    return _to_response(row)
+    for account in created:
+        db.refresh(account)
+    return [_to_response(a) for a in created]
 
 
-@router.delete("/config", status_code=status.HTTP_204_NO_CONTENT)
-def delete_config(
+@router.patch("/accounts/{account_id}", response_model=FirecrawlAccountResponse)
+def update_account(
+    account_id: int,
+    body: FirecrawlAccountUpdate,
     db: Session = Depends(get_db),
     _current: User = Depends(get_current_user),
 ):
-    row = db.get(FirecrawlConfig, 1)
-    if row is None:
-        return
-    db.delete(row)
+    account = db.get(FirecrawlAccount, account_id)
+    if account is None:
+        raise HTTPException(status_code=404, detail="Account not found")
+
+    for field, value in body.model_dump(exclude_unset=True).items():
+        setattr(account, field, value)
+    db.commit()
+    db.refresh(account)
+    return _to_response(account)
+
+
+@router.delete("/accounts/{account_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_account(
+    account_id: int,
+    db: Session = Depends(get_db),
+    _current: User = Depends(get_current_user),
+):
+    account = db.get(FirecrawlAccount, account_id)
+    if account is None:
+        raise HTTPException(status_code=404, detail="Account not found")
+    db.delete(account)
     db.commit()
 
 
-@router.post("/test", response_model=FirecrawlTestResult)
+@router.post("/accounts/{account_id}/test", response_model=FirecrawlTestResult)
 def test_connection(
+    account_id: int,
     db: Session = Depends(get_db),
     _current: User = Depends(get_current_user),
 ):
-    row = db.get(FirecrawlConfig, 1)
-    if row is None or not row.api_url:
-        raise HTTPException(
-            status_code=409,
-            detail="No Firecrawl config to test — save credentials first",
-        )
-
-    ok, message, sample_chars = firecrawl_service.test_connection(db)
-
-    row.last_test_at = datetime.now(UTC)
-    row.last_test_status = "ok" if ok else "failed"
-    row.last_test_message = message[:1000]
-    row.is_active = ok
-    db.commit()
-
+    ok, message, sample_chars = firecrawl_service.test_account_connection(db, account_id)
     return FirecrawlTestResult(ok=ok, message=message, sample_chars=sample_chars)

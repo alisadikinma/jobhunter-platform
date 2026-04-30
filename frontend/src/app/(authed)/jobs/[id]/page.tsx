@@ -110,9 +110,17 @@ export default function JobDetailPage({
 
       <div className="card">
         <h3 className="mb-2 text-xs uppercase text-neutral-500">Description</h3>
-        <pre className="whitespace-pre-wrap text-sm text-neutral-300">
-          {job.description ?? "(no description)"}
-        </pre>
+        {job.description ? (
+          <div className="space-y-3 text-sm leading-relaxed text-neutral-300">
+            {job.description.split(/\n{2,}/).map((para, i) => (
+              <p key={i} className="whitespace-pre-wrap">
+                {para}
+              </p>
+            ))}
+          </div>
+        ) : (
+          <p className="text-sm text-neutral-500">(no description)</p>
+        )}
       </div>
     </div>
   );

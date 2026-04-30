@@ -15,6 +15,8 @@ from app.scrapers.linkedin_apify import LinkedInApifyScraper
 from app.scrapers.wellfound_apify import WellfoundApifyScraper
 from app.services.apify_pool import ApifyPoolExhausted, acquire_account, record_usage
 from app.utils.deduplicator import content_hash
+from app.utils.html_strip import strip_html
+from app.utils.title_filter import is_offtopic_title
 
 log = logging.getLogger(__name__)
 
@@ -141,9 +143,23 @@ def _persist(
     duplicates = 0
     errors: list[str] = []
 
+    rejected_offtopic = 0
     for job in jobs:
         per_source[job.source] = per_source.get(job.source, 0) + 1
-        h = content_hash(job.title, job.company_name, job.description)
+
+        # Drop obvious off-topic titles (sales/recruiting/admin roles that
+        # slipped through scraper-level keyword matching because the company
+        # or description mentioned "AI" or "pipeline"). See utils/title_filter.
+        if is_offtopic_title(job.title):
+            rejected_offtopic += 1
+            continue
+
+        # Convert HTML descriptions to plain text on ingest. RemoteOK + JobSpy
+        # emit `<p>...</p>` fragments; storing raw HTML produced literal tags
+        # in the UI. One canonical text representation also helps scoring.
+        clean_description = strip_html(job.description)
+
+        h = content_hash(job.title, job.company_name, clean_description)
 
         existing = db.execute(
             select(ScrapedJob.id).where(ScrapedJob.content_hash == h)
@@ -159,7 +175,7 @@ def _persist(
             title=job.title,
             company_name=job.company_name,
             location=job.location,
-            description=job.description,
+            description=clean_description,
             tech_stack=list(job.tech_stack or []),
             salary_min=job.salary_min,
             salary_max=job.salary_max,
@@ -180,6 +196,9 @@ def _persist(
             log.warning("scrape insert collision for hash=%s: %s", h[:8], e)
             errors.append(f"insert collision: {h[:8]}")
             duplicates += 1
+
+    if rejected_offtopic:
+        errors.append(f"rejected {rejected_offtopic} off-topic titles")
 
     return ScrapeRunResponse(
         total_scraped=len(jobs),

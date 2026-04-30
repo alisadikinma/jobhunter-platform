@@ -1,141 +1,98 @@
-"""Off-topic title rejection — stop sales/recruiting roles entering the AI funnel.
+"""AI-relevance allowlist — keep only AI Agent / Automation / Image+Video / Vibe Coding.
 
-RemoteOK's keyword match is loose: a sales role at an AI company ("TENEX.AI")
-or any role whose description mentions "AI" gets through. We add a second-pass
-title-level reject so the resulting list stays focused on actual builder roles.
+Scope is intentionally narrow: the user is hunting for ONE of four tracks:
+- AI Agent / Agentic / AI Automation
+- AI Image generation
+- AI Video generation
+- Vibe Coding (Claude Code, Cursor, AI-first dev tools)
 
-The rejected list is intentionally narrow. False negatives (a real AI role
-slips through) are far worse than false positives (a sales role gets in), so
-we only reject when the title matches one of these tokens AND lacks any
-explicit engineering / ML signal.
+Anything else — DevOps, Cloud Architect, Data Engineer, ML Engineer (generic
+model training), Product Manager, Account Management, Digital Media — must be
+rejected even if the JD body happens to mention "ai" or "automation".
+
+Strategy: ALLOWLIST on the title. The title must explicitly contain one of
+the AI-relevant phrases below. Substring (not whole-word) so "AI/ML
+Platform Engineer" matches via "ai/ml" even though it'd fail \\b.
+
+Why not blocklist: the leak set is unbounded (every new role title we
+haven't seen). Allowlist forces a positive AI signal in the title itself
+and keeps false positives at zero.
 """
-import re
+from __future__ import annotations
 
-# Tokens that almost never coexist with hands-on AI engineering work. Match
-# is whole-word, case-insensitive — so "AI Engineer" doesn't trip "engineer"
-# but "Sales Engineer" does (no AI signal in the title).
-_OFFTOPIC_TOKENS = {
-    # Sales / GTM
-    "sales",
-    "salesperson",
-    "account manager",
-    "account executive",
-    "territory",
-    "business development",
-    "bdr",
-    "sdr",
-    # Recruiting / HR / Ops
-    "recruiter",
-    "recruiting",
-    "talent acquisition",
-    "marketing",  # rejected unless paired with engineering signal — see _ENGINEERING_SIGNALS
-    "vice president",
-    "vp ",
-    "managing director",
-    "regional",
-    "customer success",
-    "support specialist",
-    "support representative",
-    "executive assistant",
-    "office manager",
-    "administrative",
-    "administrator",
-    "hr ",
-    "human resources",
-    "finance",
-    "accountant",
-    "legal counsel",
-    "paralegal",
-    # Non-AI engineering — these were leaking through. Generic infra/devops
-    # roles aren't what we're hunting; AI roles say "AI engineer" or
-    # "ML engineer" in the title, not "DevOps Engineer".
-    "devops",
-    "dev ops",
-    "sre",
-    "site reliability",
-    "platform engineer",
-    "infrastructure engineer",
-    "network engineer",
-    "security engineer",
-    "cloud engineer",
-    "systems engineer",
-    "system administrator",
-    "sysadmin",
-    "qa engineer",
-    "quality assurance",
-    "test engineer",
-    "solution architect",
-    "solutions architect",
-    "data engineer",
-    "data scientist",
-    "data analyst",
-    "data product manager",
-    "product manager",
-    "product owner",
-    "project manager",
-    "program manager",
-    "scrum master",
-    "ui designer",
-    "ux designer",
-    "graphic designer",
-}
 
-# Title fragments that signal hands-on AI work. ONLY AI-explicit phrases —
-# generic "software engineer" / "devops" do NOT belong here, because we want
-# to reject them when they have no AI signal.
-_ENGINEERING_SIGNALS = {
+_AI_TITLE_PHRASES: tuple[str, ...] = (
+    # AI Engineering — generic AI builder roles
     "ai engineer",
-    "ai/ml",
-    "ai-ml",
-    "ai automation",
+    "ai/ml engineer",
+    "ai-ml engineer",
     "ai infrastructure",
     "ai platform",
     "ai research",
-    "ai video",
-    "ai creative",
-    "ml engineer",
-    "mlops",
-    "machine learning engineer",
-    "machine learning scientist",
-    "applied scientist",
-    "research scientist, ai",
-    "computer vision",
-    "nlp engineer",
+    "ai applied",
+    "applied ai",
+    # AI Agent / Automation
+    "ai agent",
+    "ai agents",
+    "agentic",
+    "agent engineer",
+    "ai automation",
+    "automation ai",
+    "workflow ai",
+    "ai workflow",
+    "ai orchestration",
+    # LLM-focused
     "llm engineer",
-    "llm",
+    "llm developer",
+    "llm ops",
+    "llmops",
+    "prompt engineer",
+    "prompt engineering",
+    # AI Video / Image / Creative
+    "ai video",
+    "ai image",
+    "ai creative",
+    "ai animation",
     "generative ai",
     "gen ai",
     "genai",
-    "prompt engineer",
-    "automation engineer",  # narrow — only when explicitly automation-flavored
-    "founding ai",
-    "founding engineer, ai",
+    "generative video",
+    "generative image",
+    "diffusion model",
+    "computer vision",  # user is open to vision/CV roles within video gen
+    # Vibe coding / dev tools
     "vibe coding",
     "claude code",
-    "agent engineer",
-    "agentic",
-}
+    "cursor ide",
+    "ai-first",
+    "ai first engineer",
+    "founding ai",
+    "founding engineer, ai",
+    "founding engineer ai",
+    "ai-native",
+    "ai native",
+)
 
 
-def is_offtopic_title(title: str | None) -> bool:
-    """True if the title is an off-topic role we should drop at scrape time.
+def is_ai_relevant(title: str | None) -> bool:
+    """True if the title contains an explicit AI-relevant phrase.
 
-    Matches whole-word, case-insensitive. Returns False if the title also
-    contains an engineering-signal phrase (the AI-positive override).
+    Substring match, case-insensitive. Empty / None returns False.
     """
     if not title:
         return False
-    t = title.lower().strip()
+    t = title.lower()
+    return any(phrase in t for phrase in _AI_TITLE_PHRASES)
 
-    # Fast accept: any engineering signal short-circuits the rejection.
-    if any(sig in t for sig in _ENGINEERING_SIGNALS):
+
+def is_offtopic_title(title: str | None) -> bool:
+    """Inverse of is_ai_relevant. Kept as the name scrapers/tests already import.
+
+    Rejects any title that does NOT contain an AI-relevant phrase.
+    """
+    if not title:
+        # Empty title = unknown intent. We don't reject (the scraper layer
+        # decides what to do with title-less rows; usually they're dropped
+        # earlier on schema-level validation).
         return False
-
-    # Word-boundary match for each off-topic token.
-    for token in _OFFTOPIC_TOKENS:
-        # `\b` doesn't work cleanly for tokens containing spaces — use a
-        # space-padded regex with start/end anchors as a fallback.
-        pattern = r"\b" + re.escape(token.strip()) + r"\b"
-        if re.search(pattern, t):
-            return True
-    return False
+    return not is_ai_relevant(title)

@@ -69,30 +69,23 @@ def upgrade() -> None:
             {"kws": kws, "v": variant},
         )
 
-    # Purge previously-leaked off-topic jobs from `scraped_jobs`. These
-    # entered before the title_filter was tightened (DevOps/Data PM/etc.
-    # tagged as ai_automation). We reject any job whose title contains an
-    # off-topic token AND lacks any explicit AI signal — same shape as
-    # title_filter.is_offtopic_title, but inlined as SQL so we don't
-    # depend on Python during migration.
+    # Purge ALL jobs whose title lacks an AI-relevant signal. This is the
+    # SQL mirror of app.utils.title_filter.is_ai_relevant — substring match
+    # against the curated AI phrase list.
     conn.execute(
         sa.text(
-            """
+            r"""
             DELETE FROM scraped_jobs
-            WHERE
-                LOWER(title) ~* '\\m(devops|sre|site reliability|platform engineer'
-                            '|infrastructure engineer|network engineer|security engineer'
-                            '|cloud engineer|systems engineer|sysadmin|qa engineer'
-                            '|test engineer|solution architect|data engineer'
-                            '|data scientist|data analyst|data product manager'
-                            '|product manager|product owner|project manager'
-                            '|program manager|scrum master|ui designer|ux designer'
-                            '|graphic designer)\\M'
-                AND LOWER(title) !~* '\\m(ai engineer|ai/ml|ai automation|ai infrastructure'
-                                  '|ai platform|ai research|ai video|ai creative'
-                                  '|ml engineer|mlops|machine learning|computer vision'
-                                  '|nlp|llm|generative ai|gen ai|genai|prompt engineer'
-                                  '|vibe coding|claude code|agentic|founding ai)\\M'
+            WHERE LOWER(title) !~ '(ai engineer|ai/ml engineer|ai-ml engineer'
+                              '|ai infrastructure|ai platform|ai research|ai applied|applied ai'
+                              '|ai agent|agentic|agent engineer|ai automation|automation ai'
+                              '|ai workflow|workflow ai|ai orchestration'
+                              '|llm engineer|llm developer|llm ops|llmops|prompt engineer|prompt engineering'
+                              '|ai video|ai image|ai creative|ai animation'
+                              '|generative ai|gen ai|genai|generative video|generative image|diffusion model'
+                              '|computer vision'
+                              '|vibe coding|claude code|cursor ide|ai-first|ai first engineer'
+                              '|founding ai|founding engineer, ai|founding engineer ai|ai-native|ai native)'
             """
         )
     )

@@ -1,5 +1,6 @@
 "use client";
 
+import { ChevronDown, Flame, Inbox, Server } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import {
@@ -10,25 +11,49 @@ import {
   useTestApify,
 } from "@/hooks/useApify";
 import {
+  useDeleteFirecrawl,
+  useFirecrawlConfig,
+  useSaveFirecrawlConfig,
+  useTestFirecrawl,
+} from "@/hooks/useFirecrawl";
+import {
   useDeleteMailbox,
   useMailboxConfig,
   useSaveMailboxConfig,
   useTestMailbox,
 } from "@/hooks/useMailbox";
+import { cn } from "@/lib/utils";
+
+type SectionId = "mailbox" | "apify" | "firecrawl";
 
 export default function CredentialsPage() {
+  // Default: mailbox open (most-edited section), others collapsed.
+  const [openSections, setOpenSections] = useState<Set<SectionId>>(
+    new Set(["mailbox"]),
+  );
+
+  function toggle(id: SectionId) {
+    setOpenSections((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
   return (
-    <div className="space-y-8">
+    <div className="mx-auto max-w-5xl space-y-3">
       <div>
-        <h1 className="text-2xl font-semibold">Credentials</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Credentials</h1>
         <p className="mt-1 text-sm text-neutral-500">
-          Edit external integrations from one place. All secrets are
-          Fernet-encrypted in the database — never written back to disk.
+          External integrations in one place. All secrets are Fernet-encrypted
+          in the database — never written back to disk.
         </p>
       </div>
 
-      <MailboxSection />
-      <ApifyPoolSection />
+      <MailboxSection open={openSections.has("mailbox")} onToggle={() => toggle("mailbox")} />
+      <ApifyPoolSection open={openSections.has("apify")} onToggle={() => toggle("apify")} />
+      <FirecrawlSection open={openSections.has("firecrawl")} onToggle={() => toggle("firecrawl")} />
     </div>
   );
 }
@@ -59,7 +84,7 @@ const _MAILBOX_DEFAULTS: MailboxFormState = {
   drafts_folder: "INBOX.Drafts",
 };
 
-function MailboxSection() {
+function MailboxSection({ open, onToggle }: SectionProps) {
   const { data, isLoading } = useMailboxConfig();
   const save = useSaveMailboxConfig();
   const test = useTestMailbox();
@@ -76,8 +101,6 @@ function MailboxSection() {
       imap_host: data.imap_host,
       imap_port: data.imap_port,
       username: data.username,
-      // Never echo the masked value into the editable input — leave blank
-      // so saving without typing keeps the existing password.
       password: "",
       from_address: data.from_address,
       from_name: data.from_name,
@@ -85,24 +108,15 @@ function MailboxSection() {
     }));
   }, [data]);
 
-  if (isLoading) {
-    return <SectionShell title="Mailbox">Loading…</SectionShell>;
-  }
-
   const hasPassword = !!data?.password_masked;
   const isActive = !!data?.is_active;
 
   async function onSave() {
     setError(null);
     try {
-      const payload = {
-        ...form,
-        password: form.password || null,
-      };
-      await save.mutateAsync(payload);
+      await save.mutateAsync({ ...form, password: form.password || null });
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "Save failed";
-      setError(msg);
+      setError(e instanceof Error ? e.message : "Save failed");
     }
   }
 
@@ -112,15 +126,17 @@ function MailboxSection() {
       const r = await test.mutateAsync();
       setError(r.ok ? null : r.message);
     } catch (e) {
-      const msg = e instanceof Error ? e.message : "Test failed";
-      setError(msg);
+      setError(e instanceof Error ? e.message : "Test failed");
     }
   }
 
   return (
-    <SectionShell
+    <Accordion
+      open={open}
+      onToggle={onToggle}
+      icon={<Inbox className="h-4 w-4 text-brand-blue" strokeWidth={1.75} />}
       title="Mailbox"
-      subtitle="Custom-domain mailbox for cold-email drafts. Drafts append via IMAP; user reviews + sends from any IMAP client."
+      subtitle="Custom-domain mailbox for cold-email drafts. IMAP append, manual review + send."
       status={
         isActive
           ? { label: "Active", tone: "ok" }
@@ -129,131 +145,137 @@ function MailboxSection() {
             : { label: "Not configured", tone: "off" }
       }
     >
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
-        <Field label="SMTP host">
-          <input
-            className="input"
-            value={form.smtp_host}
-            onChange={(e) => setForm({ ...form, smtp_host: e.target.value })}
-            placeholder="smtp.hostinger.com"
-          />
-        </Field>
-        <Field label="SMTP port">
-          <input
-            type="number"
-            className="input"
-            value={form.smtp_port}
-            onChange={(e) => setForm({ ...form, smtp_port: Number(e.target.value) })}
-          />
-        </Field>
-        <Field label="IMAP host">
-          <input
-            className="input"
-            value={form.imap_host}
-            onChange={(e) => setForm({ ...form, imap_host: e.target.value })}
-            placeholder="imap.hostinger.com"
-          />
-        </Field>
-        <Field label="IMAP port">
-          <input
-            type="number"
-            className="input"
-            value={form.imap_port}
-            onChange={(e) => setForm({ ...form, imap_port: Number(e.target.value) })}
-          />
-        </Field>
-        <Field label="Username (full email)">
-          <input
-            className="input"
-            type="email"
-            value={form.username}
-            onChange={(e) => setForm({ ...form, username: e.target.value })}
-            placeholder="aiagent@yourdomain.com"
-          />
-        </Field>
-        <Field
-          label="Password"
-          hint={hasPassword ? "Leave blank to keep existing" : "Required on first save"}
-        >
-          <input
-            className="input"
-            type="password"
-            value={form.password}
-            onChange={(e) => setForm({ ...form, password: e.target.value })}
-            placeholder={hasPassword ? "••••••••" : ""}
-            autoComplete="new-password"
-          />
-        </Field>
-        <Field label="From address">
-          <input
-            className="input"
-            type="email"
-            value={form.from_address}
-            onChange={(e) => setForm({ ...form, from_address: e.target.value })}
-            placeholder="aiagent@yourdomain.com"
-          />
-        </Field>
-        <Field label="From name">
-          <input
-            className="input"
-            value={form.from_name}
-            onChange={(e) => setForm({ ...form, from_name: e.target.value })}
-            placeholder="Your Name"
-          />
-        </Field>
-        <Field
-          label="Drafts folder"
-          hint='Hostinger / Dovecot use "INBOX.Drafts". Gmail uses "[Gmail]/Drafts".'
-        >
-          <input
-            className="input"
-            value={form.drafts_folder}
-            onChange={(e) => setForm({ ...form, drafts_folder: e.target.value })}
-          />
-        </Field>
-      </div>
+      {isLoading ? (
+        <div className="text-sm text-neutral-500">Loading…</div>
+      ) : (
+        <>
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+            <Field label="SMTP host">
+              <input
+                className="input"
+                value={form.smtp_host}
+                onChange={(e) => setForm({ ...form, smtp_host: e.target.value })}
+                placeholder="smtp.hostinger.com"
+              />
+            </Field>
+            <Field label="SMTP port">
+              <input
+                type="number"
+                className="input"
+                value={form.smtp_port}
+                onChange={(e) => setForm({ ...form, smtp_port: Number(e.target.value) })}
+              />
+            </Field>
+            <Field label="IMAP host">
+              <input
+                className="input"
+                value={form.imap_host}
+                onChange={(e) => setForm({ ...form, imap_host: e.target.value })}
+                placeholder="imap.hostinger.com"
+              />
+            </Field>
+            <Field label="IMAP port">
+              <input
+                type="number"
+                className="input"
+                value={form.imap_port}
+                onChange={(e) => setForm({ ...form, imap_port: Number(e.target.value) })}
+              />
+            </Field>
+            <Field label="Username (full email)">
+              <input
+                className="input"
+                type="email"
+                value={form.username}
+                onChange={(e) => setForm({ ...form, username: e.target.value })}
+                placeholder="aiagent@yourdomain.com"
+              />
+            </Field>
+            <Field
+              label="Password"
+              hint={hasPassword ? "Leave blank to keep existing" : "Required on first save"}
+            >
+              <input
+                className="input"
+                type="password"
+                value={form.password}
+                onChange={(e) => setForm({ ...form, password: e.target.value })}
+                placeholder={hasPassword ? "••••••••" : ""}
+                autoComplete="new-password"
+              />
+            </Field>
+            <Field label="From address">
+              <input
+                className="input"
+                type="email"
+                value={form.from_address}
+                onChange={(e) => setForm({ ...form, from_address: e.target.value })}
+                placeholder="aiagent@yourdomain.com"
+              />
+            </Field>
+            <Field label="From name">
+              <input
+                className="input"
+                value={form.from_name}
+                onChange={(e) => setForm({ ...form, from_name: e.target.value })}
+                placeholder="Your Name"
+              />
+            </Field>
+            <Field
+              label="Drafts folder"
+              hint='Hostinger / Dovecot use "INBOX.Drafts". Gmail uses "[Gmail]/Drafts".'
+            >
+              <input
+                className="input"
+                value={form.drafts_folder}
+                onChange={(e) => setForm({ ...form, drafts_folder: e.target.value })}
+              />
+            </Field>
+          </div>
 
-      <div className="mt-4 flex items-center gap-2">
-        <button onClick={onSave} disabled={save.isPending} className="btn-primary">
-          {save.isPending ? "Saving…" : "Save"}
-        </button>
-        <button
-          onClick={onTest}
-          disabled={test.isPending || !hasPassword}
-          className="btn-ghost"
-          title={hasPassword ? "Run live IMAP + SMTP login" : "Save credentials first"}
-        >
-          {test.isPending ? "Testing…" : "Test connection"}
-        </button>
-        {hasPassword && (
-          <button
-            onClick={() => {
-              if (confirm("Remove all mailbox credentials?")) del.mutate();
-            }}
-            className="btn-ghost ml-auto text-red-400"
-          >
-            Remove
-          </button>
-        )}
-      </div>
+          <div className="mt-4 flex items-center gap-2">
+            <button onClick={onSave} disabled={save.isPending} className="btn-primary">
+              {save.isPending ? "Saving…" : "Save"}
+            </button>
+            <button
+              onClick={onTest}
+              disabled={test.isPending || !hasPassword}
+              className="btn-ghost"
+              title={hasPassword ? "Run live IMAP + SMTP login" : "Save credentials first"}
+            >
+              {test.isPending ? "Testing…" : "Test connection"}
+            </button>
+            {hasPassword && (
+              <button
+                onClick={() => {
+                  if (confirm("Remove all mailbox credentials?")) del.mutate();
+                }}
+                className="btn-ghost ml-auto text-red-400"
+              >
+                Remove
+              </button>
+            )}
+          </div>
 
-      {data?.last_test_at && (
-        <div className="mt-3 text-xs text-neutral-500">
-          Last test {new Date(data.last_test_at).toLocaleString()} ·{" "}
-          <span className={data.last_test_status === "ok" ? "text-emerald-400" : "text-red-400"}>
-            {data.last_test_status}
-          </span>
-          {data.last_test_message && <> · {data.last_test_message}</>}
-        </div>
+          {data?.last_test_at && (
+            <div className="mt-3 text-xs text-neutral-500">
+              Last test {new Date(data.last_test_at).toLocaleString()} ·{" "}
+              <span className={data.last_test_status === "ok" ? "text-emerald-400" : "text-red-400"}>
+                {data.last_test_status}
+              </span>
+              {data.last_test_message && <> · {data.last_test_message}</>}
+            </div>
+          )}
+          {error && <div className="mt-3 text-sm text-red-400">{error}</div>}
+        </>
       )}
-      {error && <div className="mt-3 text-sm text-red-400">{error}</div>}
-    </SectionShell>
+    </Accordion>
   );
 }
 
 // ---- Apify pool section -----------------------------------------------------
 
-function ApifyPoolSection() {
+function ApifyPoolSection({ open, onToggle }: SectionProps) {
   const { data, isLoading } = useApifyAccounts();
   const create = useCreateApifyAccount();
   const bulk = useBulkCreateApify();
@@ -269,14 +291,17 @@ function ApifyPoolSection() {
   );
 
   return (
-    <SectionShell
+    <Accordion
+      open={open}
+      onToggle={onToggle}
+      icon={<Server className="h-4 w-4 text-brand-blue" strokeWidth={1.75} />}
       title="Apify Pool"
-      subtitle="Free-tier Apify accounts for Wellfound + LinkedIn (opt-in). The router rotates across active accounts."
+      subtitle="Free-tier Apify accounts for Wellfound + LinkedIn (opt-in). Router rotates across active accounts."
       status={
         total === 0
           ? { label: "No accounts", tone: "off" }
           : active < 2
-            ? { label: `${active}/${total} active — add more`, tone: "warn" }
+            ? { label: `${active}/${total} active`, tone: "warn" }
             : { label: `${active}/${total} active`, tone: "ok" }
       }
     >
@@ -293,7 +318,9 @@ function ApifyPoolSection() {
           }}
           className="space-y-2 rounded-card border border-neutral-800 p-3"
         >
-          <h3 className="text-xs font-medium uppercase text-neutral-500">Add account</h3>
+          <h3 className="text-[11px] font-medium uppercase tracking-wider text-neutral-500">
+            Add account
+          </h3>
           <input className="input" name="label" placeholder="Label (e.g. apify01)" required />
           <input className="input" name="email" placeholder="Apify login email" type="email" required />
           <input className="input" name="token" placeholder="API token" required />
@@ -303,7 +330,9 @@ function ApifyPoolSection() {
         </form>
 
         <div className="space-y-2 rounded-card border border-neutral-800 p-3">
-          <h3 className="text-xs font-medium uppercase text-neutral-500">Bulk import</h3>
+          <h3 className="text-[11px] font-medium uppercase tracking-wider text-neutral-500">
+            Bulk import
+          </h3>
           <p className="text-xs text-neutral-500">
             One per line: <code className="font-mono">label,email,token</code>
           </p>
@@ -333,11 +362,11 @@ function ApifyPoolSection() {
       </div>
 
       {isLoading ? (
-        <div className="mt-3 text-neutral-500">Loading…</div>
+        <div className="mt-3 text-sm text-neutral-500">Loading…</div>
       ) : (
         <div className="mt-3 overflow-hidden rounded-card border border-neutral-800">
           <table className="w-full text-sm">
-            <thead className="bg-neutral-900 text-xs uppercase text-neutral-500">
+            <thead className="bg-neutral-900 text-[11px] uppercase tracking-wider text-neutral-500">
               <tr>
                 <th className="px-3 py-2 text-left">Label</th>
                 <th className="px-3 py-2 text-left">Email</th>
@@ -363,9 +392,14 @@ function ApifyPoolSection() {
                       <div className="flex items-center gap-2">
                         <div className="h-1.5 w-24 overflow-hidden rounded-full bg-neutral-800">
                           <div
-                            className={`h-full ${
-                              pct >= 95 ? "bg-red-500" : pct >= 80 ? "bg-amber-500" : "bg-emerald-500"
-                            }`}
+                            className={cn(
+                              "h-full",
+                              pct >= 95
+                                ? "bg-red-500"
+                                : pct >= 80
+                                  ? "bg-amber-500"
+                                  : "bg-emerald-500",
+                            )}
                             style={{ width: `${pct}%` }}
                           />
                         </div>
@@ -403,7 +437,7 @@ function ApifyPoolSection() {
               })}
               {(data ?? []).length === 0 && (
                 <tr>
-                  <td colSpan={6} className="p-6 text-center text-neutral-500">
+                  <td colSpan={6} className="p-6 text-center text-sm text-neutral-500">
                     No accounts yet. Add one above or bulk-import.
                   </td>
                 </tr>
@@ -412,7 +446,7 @@ function ApifyPoolSection() {
           </table>
         </div>
       )}
-    </SectionShell>
+    </Accordion>
   );
 }
 
@@ -423,37 +457,241 @@ function ApifyStatusBadge({ status }: { status: string }) {
     suspended: "bg-red-500/15 text-red-400",
   };
   return (
-    <span className={`rounded-full px-2 py-0.5 text-xs ${colors[status] ?? "bg-neutral-800"}`}>
+    <span className={cn("rounded-full px-2 py-0.5 text-xs", colors[status] ?? "bg-neutral-800")}>
       {status}
     </span>
   );
 }
 
-// ---- Shared UI primitives --------------------------------------------------
+// ---- Firecrawl section ------------------------------------------------------
+
+type FirecrawlFormState = {
+  api_url: string;
+  api_key: string;
+  timeout_s: number;
+};
+
+const _FIRECRAWL_DEFAULTS: FirecrawlFormState = {
+  api_url: "https://api.firecrawl.dev",
+  api_key: "",
+  timeout_s: 60,
+};
+
+function FirecrawlSection({ open, onToggle }: SectionProps) {
+  const { data, isLoading } = useFirecrawlConfig();
+  const save = useSaveFirecrawlConfig();
+  const test = useTestFirecrawl();
+  const del = useDeleteFirecrawl();
+  const [form, setForm] = useState<FirecrawlFormState>(_FIRECRAWL_DEFAULTS);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!data) return;
+    setForm((prev) => ({
+      ...prev,
+      api_url: data.api_url,
+      api_key: "",
+      timeout_s: data.timeout_s,
+    }));
+  }, [data]);
+
+  const hasKey = !!data?.api_key_masked;
+  const isActive = !!data?.is_active;
+  const isSelfHosted =
+    form.api_url.includes("firecrawl-api") ||
+    form.api_url.startsWith("http://localhost") ||
+    form.api_url.startsWith("http://127");
+
+  async function onSave() {
+    setError(null);
+    try {
+      await save.mutateAsync({
+        api_url: form.api_url,
+        api_key: form.api_key || null,
+        timeout_s: form.timeout_s,
+      });
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Save failed");
+    }
+  }
+
+  async function onTest() {
+    setError(null);
+    try {
+      const r = await test.mutateAsync();
+      setError(r.ok ? null : r.message);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Test failed");
+    }
+  }
+
+  return (
+    <Accordion
+      open={open}
+      onToggle={onToggle}
+      icon={<Flame className="h-4 w-4 text-brand-orange" strokeWidth={1.75} />}
+      title="Firecrawl"
+      subtitle="JD + company-page enrichment. Self-hosted (no key) or SaaS (api.firecrawl.dev)."
+      status={
+        isActive
+          ? { label: "Active", tone: "ok" }
+          : hasKey || isSelfHosted
+            ? { label: "Saved (untested)", tone: "warn" }
+            : { label: "Not configured", tone: "off" }
+      }
+    >
+      {isLoading ? (
+        <div className="text-sm text-neutral-500">Loading…</div>
+      ) : (
+        <>
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-[2fr_1fr]">
+            <Field
+              label="API URL"
+              hint={
+                isSelfHosted
+                  ? "Self-hosted detected — API key optional."
+                  : 'SaaS endpoint. Get a key at firecrawl.dev → "API keys".'
+              }
+            >
+              <input
+                className="input"
+                value={form.api_url}
+                onChange={(e) => setForm({ ...form, api_url: e.target.value })}
+                placeholder="https://api.firecrawl.dev"
+              />
+            </Field>
+            <Field label="Timeout (s)">
+              <input
+                type="number"
+                className="input"
+                value={form.timeout_s}
+                onChange={(e) => setForm({ ...form, timeout_s: Number(e.target.value) })}
+              />
+            </Field>
+          </div>
+
+          <div className="mt-3">
+            <Field
+              label="API key"
+              hint={
+                hasKey
+                  ? "Leave blank to keep existing"
+                  : isSelfHosted
+                    ? "Optional for self-hosted Firecrawl"
+                    : "Required for SaaS — fc-..."
+              }
+            >
+              <input
+                className="input font-mono text-xs"
+                type="password"
+                value={form.api_key}
+                onChange={(e) => setForm({ ...form, api_key: e.target.value })}
+                placeholder={hasKey ? "••••••••" : "fc-..."}
+                autoComplete="new-password"
+              />
+            </Field>
+          </div>
+
+          <div className="mt-4 flex items-center gap-2">
+            <button onClick={onSave} disabled={save.isPending} className="btn-primary">
+              {save.isPending ? "Saving…" : "Save"}
+            </button>
+            <button
+              onClick={onTest}
+              disabled={test.isPending || (!hasKey && !isSelfHosted)}
+              className="btn-ghost"
+              title="Live scrape against example.com to verify creds"
+            >
+              {test.isPending ? "Testing…" : "Test connection"}
+            </button>
+            {(hasKey || data?.api_url) && (
+              <button
+                onClick={() => {
+                  if (confirm("Remove Firecrawl credentials?")) del.mutate();
+                }}
+                className="btn-ghost ml-auto text-red-400"
+              >
+                Remove
+              </button>
+            )}
+          </div>
+
+          {data?.last_test_at && (
+            <div className="mt-3 text-xs text-neutral-500">
+              Last test {new Date(data.last_test_at).toLocaleString()} ·{" "}
+              <span className={data.last_test_status === "ok" ? "text-emerald-400" : "text-red-400"}>
+                {data.last_test_status}
+              </span>
+              {data.last_test_message && <> · {data.last_test_message}</>}
+            </div>
+          )}
+          {error && <div className="mt-3 text-sm text-red-400">{error}</div>}
+        </>
+      )}
+    </Accordion>
+  );
+}
+
+// ---- Accordion primitive ----------------------------------------------------
+
+type SectionProps = {
+  open: boolean;
+  onToggle: () => void;
+};
 
 type Status = { label: string; tone: "ok" | "warn" | "off" };
 
-function SectionShell({
+function Accordion({
+  open,
+  onToggle,
+  icon,
   title,
   subtitle,
   status,
   children,
-}: {
+}: SectionProps & {
+  icon: React.ReactNode;
   title: string;
   subtitle?: string;
   status?: Status;
   children: React.ReactNode;
 }) {
   return (
-    <section className="card">
-      <div className="flex items-start justify-between">
-        <div>
-          <h2 className="text-lg font-semibold">{title}</h2>
-          {subtitle && <p className="mt-0.5 text-sm text-neutral-500">{subtitle}</p>}
+    <section className="card overflow-hidden p-0">
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={open}
+        className={cn(
+          "flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition-colors",
+          "hover:bg-neutral-900/40",
+          open && "border-b border-neutral-800/60",
+        )}
+      >
+        <div className="flex min-w-0 items-start gap-3">
+          <span className="mt-0.5 inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-button bg-neutral-900">
+            {icon}
+          </span>
+          <div className="min-w-0">
+            <h2 className="truncate text-base font-medium text-neutral-100">{title}</h2>
+            {subtitle && (
+              <p className="mt-0.5 line-clamp-1 text-xs text-neutral-500">{subtitle}</p>
+            )}
+          </div>
         </div>
-        {status && <StatusChip status={status} />}
-      </div>
-      <div className="mt-4">{children}</div>
+        <div className="flex shrink-0 items-center gap-2">
+          {status && <StatusChip status={status} />}
+          <ChevronDown
+            className={cn(
+              "h-4 w-4 text-neutral-500 transition-transform duration-200",
+              open && "rotate-180 text-neutral-300",
+            )}
+            strokeWidth={1.75}
+          />
+        </div>
+      </button>
+
+      {open && <div className="p-4">{children}</div>}
     </section>
   );
 }
@@ -465,7 +703,12 @@ function StatusChip({ status }: { status: Status }) {
     off: "bg-neutral-800 text-neutral-500",
   };
   return (
-    <span className={`rounded-full px-2.5 py-1 text-xs ${tones[status.tone]}`}>
+    <span
+      className={cn(
+        "rounded-full px-2 py-0.5 text-[11px] font-medium uppercase tracking-wider",
+        tones[status.tone],
+      )}
+    >
       {status.label}
     </span>
   );
@@ -481,8 +724,10 @@ function Field({
   children: React.ReactNode;
 }) {
   return (
-    <div className="space-y-1">
-      <label className="text-xs font-medium text-neutral-300">{label}</label>
+    <div className="space-y-1.5">
+      <label className="block text-[11px] font-medium uppercase tracking-wider text-neutral-500">
+        {label}
+      </label>
       {children}
       {hint && <p className="text-xs text-neutral-500">{hint}</p>}
     </div>

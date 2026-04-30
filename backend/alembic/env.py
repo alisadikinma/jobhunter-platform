@@ -32,6 +32,8 @@ import app.models.scrape_config  # noqa: F401
 import app.models.agent_job  # noqa: F401
 import app.models.apify_account  # noqa: F401
 import app.models.portfolio_asset  # noqa: F401
+import app.models.mailbox  # noqa: F401
+import app.models.firecrawl_config  # noqa: F401
 
 target_metadata = Base.metadata
 

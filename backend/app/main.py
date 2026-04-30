@@ -12,6 +12,7 @@ from app.api.callbacks import router as callbacks_router
 from app.api.cv import router as cv_router
 from app.api.emails import router as emails_router
 from app.api.enrichment import router as enrichment_router
+from app.api.firecrawl import router as firecrawl_router
 from app.api.jobs import router as jobs_router
 from app.api.mailbox import router as mailbox_router
 from app.api.portfolio import router as portfolio_router
@@ -62,6 +63,7 @@ app.include_router(callbacks_router)
 app.include_router(cv_router)
 app.include_router(emails_router)
 app.include_router(enrichment_router)
+app.include_router(firecrawl_router)
 app.include_router(jobs_router)
 app.include_router(mailbox_router)
 app.include_router(portfolio_router)

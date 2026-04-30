@@ -15,6 +15,7 @@ import re
 # is whole-word, case-insensitive — so "AI Engineer" doesn't trip "engineer"
 # but "Sales Engineer" does (no AI signal in the title).
 _OFFTOPIC_TOKENS = {
+    # Sales / GTM
     "sales",
     "salesperson",
     "account manager",
@@ -23,6 +24,7 @@ _OFFTOPIC_TOKENS = {
     "business development",
     "bdr",
     "sdr",
+    # Recruiting / HR / Ops
     "recruiter",
     "recruiting",
     "talent acquisition",
@@ -37,43 +39,81 @@ _OFFTOPIC_TOKENS = {
     "executive assistant",
     "office manager",
     "administrative",
-    "administrator",  # database admin etc. typically not AI-engineering
+    "administrator",
     "hr ",
     "human resources",
     "finance",
     "accountant",
     "legal counsel",
     "paralegal",
-}
-
-# Title fragments that signal hands-on AI/engineering work. If ANY of these
-# appears in the title, the off-topic filter does NOT reject — covers cases
-# like "Marketing Engineer (AI)" or "AI Sales Engineer (technical pre-sales)".
-_ENGINEERING_SIGNALS = {
-    "ai engineer",
-    "ml engineer",
-    "machine learning",
-    "data engineer",
-    "data scientist",
-    "research engineer",
-    "research scientist",
-    "software engineer",
-    "backend engineer",
-    "frontend engineer",
-    "full-stack",
-    "fullstack",
+    # Non-AI engineering — these were leaking through. Generic infra/devops
+    # roles aren't what we're hunting; AI roles say "AI engineer" or
+    # "ML engineer" in the title, not "DevOps Engineer".
     "devops",
+    "dev ops",
+    "sre",
     "site reliability",
     "platform engineer",
     "infrastructure engineer",
-    "automation engineer",
+    "network engineer",
+    "security engineer",
+    "cloud engineer",
+    "systems engineer",
+    "system administrator",
+    "sysadmin",
+    "qa engineer",
+    "quality assurance",
+    "test engineer",
+    "solution architect",
+    "solutions architect",
+    "data engineer",
+    "data scientist",
+    "data analyst",
+    "data product manager",
+    "product manager",
+    "product owner",
+    "project manager",
+    "program manager",
+    "scrum master",
+    "ui designer",
+    "ux designer",
+    "graphic designer",
+}
+
+# Title fragments that signal hands-on AI work. ONLY AI-explicit phrases —
+# generic "software engineer" / "devops" do NOT belong here, because we want
+# to reject them when they have no AI signal.
+_ENGINEERING_SIGNALS = {
+    "ai engineer",
+    "ai/ml",
+    "ai-ml",
     "ai automation",
-    "video engineer",
-    "developer advocate",
-    "founding engineer",
+    "ai infrastructure",
+    "ai platform",
+    "ai research",
+    "ai video",
+    "ai creative",
+    "ml engineer",
+    "mlops",
+    "machine learning engineer",
+    "machine learning scientist",
+    "applied scientist",
+    "research scientist, ai",
     "computer vision",
-    "nlp",
+    "nlp engineer",
+    "llm engineer",
     "llm",
+    "generative ai",
+    "gen ai",
+    "genai",
+    "prompt engineer",
+    "automation engineer",  # narrow — only when explicitly automation-flavored
+    "founding ai",
+    "founding engineer, ai",
+    "vibe coding",
+    "claude code",
+    "agent engineer",
+    "agentic",
 }
 
 

@@ -30,12 +30,12 @@ from app.scrapers.base import BaseScraper
 log = logging.getLogger(__name__)
 
 _BASE = "https://weworkremotely.com/categories"
+# Only pull categories where AI roles realistically appear. devops/design/
+# product/marketing categories were polluting AI-Automation results with
+# DevOps Engineer, Data Product Manager, etc. — those titles are filtered
+# at title_filter.py but it's cheaper to skip the category entirely.
 _CATEGORIES = (
     "remote-programming-jobs",
-    "remote-devops-sysadmin-jobs",
-    "remote-design-jobs",
-    "remote-product-jobs",
-    "remote-marketing-jobs",
     "all-other-remote-jobs",
 )
 

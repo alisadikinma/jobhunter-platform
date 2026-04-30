@@ -75,11 +75,21 @@ class _ResolvedConfig:
         return addr.split("@", 1)[1] if "@" in addr else "localhost"
 
 
-def _resolve(db: Session | None) -> _ResolvedConfig:
-    """DB-first, fall back to env. Raises MailerDisabled if neither has creds."""
+def _resolve(db: Session | None, *, require_active: bool = True) -> _ResolvedConfig:
+    """DB-first, fall back to env. Raises MailerDisabled if neither has creds.
+
+    `require_active=False` lets `test_connection` validate freshly-saved creds
+    before the `is_active` flag has been flipped (chicken-and-egg: the flag
+    only flips after a successful test).
+    """
     if db is not None:
         row = db.get(MailboxConfig, 1)
-        if row is not None and row.is_active and row.username and row.password_encrypted:
+        if (
+            row is not None
+            and row.username
+            and row.password_encrypted
+            and (row.is_active or not require_active)
+        ):
             try:
                 password = decrypt_token(row.password_encrypted)
             except Exception as e:
@@ -201,7 +211,7 @@ def test_connection(db: Session) -> tuple[bool, bool, str]:
     Returns `(imap_ok, smtp_ok, message)`. Used by the test endpoint
     BEFORE marking `is_active=true`.
     """
-    cfg = _resolve(db)
+    cfg = _resolve(db, require_active=False)
     imap_ok = False
     smtp_ok = False
     parts: list[str] = []

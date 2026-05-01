@@ -199,16 +199,30 @@ def import_master_from_url(
 
     try:
         with FirecrawlService(db=db) as fc:
-            result = fc.scrape(body.url)
+            # waitFor lets JS-rendered SPAs (Next/Nuxt/React) finish hydrating
+            # before Firecrawl reads the DOM. 5s is enough for most sites.
+            result = fc.scrape(body.url, opts={"waitFor": 5000})
     except Exception as e:  # network/pool failure — surface as 502
-        raise HTTPException(status_code=502, detail=f"Firecrawl scrape failed: {e}") from e
+        raise HTTPException(
+            status_code=502,
+            detail=(
+                f"Firecrawl scrape failed: {e}. "
+                "Tip: try the 'Upload file' option instead — it parses your "
+                "CV directly without needing Firecrawl."
+            ),
+        ) from e
 
     markdown = (result or {}).get("markdown") or ""
     if not markdown.strip():
         err = (result or {}).get("error") or "empty response"
         raise HTTPException(
             status_code=502,
-            detail=f"Firecrawl returned no content for {body.url}: {err}",
+            detail=(
+                f"Firecrawl returned no content for {body.url}: {err}. "
+                "Tip: try uploading your CV as PDF/DOCX directly instead — "
+                "the 'Upload file' button parses local files without "
+                "depending on Firecrawl SaaS."
+            ),
         )
 
     try:

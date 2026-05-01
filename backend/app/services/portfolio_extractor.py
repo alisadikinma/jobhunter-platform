@@ -56,13 +56,20 @@ def extract_portfolio_from_url(db: Session, url: str) -> list[dict[str, Any]]:
     Auth: host's `claude` CLI OAuth login. No API key required.
     """
     with FirecrawlService(db=db) as service:
-        result = service.scrape(url)
+        # waitFor=5000 lets JS-rendered SPAs (Next/Nuxt/React) finish
+        # hydration before Firecrawl reads the DOM. Without this, modern
+        # portfolio sites return empty markdown because the actual content
+        # injects after initial HTML load.
+        result = service.scrape(url, opts={"waitFor": 5000})
 
     markdown = (result or {}).get("markdown") or ""
     if not markdown:
         err = (result or {}).get("error") or "no error"
         raise PortfolioExtractError(
-            f"Firecrawl returned empty content for {url} ({err})"
+            f"Firecrawl returned no content for {url} ({err}). "
+            "If the site is JS-rendered, the wait timeout may need to be "
+            "increased. Otherwise try adding entries via the 'Add asset' "
+            "button manually."
         )
 
     try:

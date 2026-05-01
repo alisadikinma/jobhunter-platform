@@ -66,6 +66,17 @@ class ApplicationCreate(BaseModel):
     job_id: int
 
 
+class EasyApplyRequest(BaseModel):
+    job_id: int
+
+
+class EasyApplyResponse(BaseModel):
+    application_id: int
+    cv_agent_job_id: int
+    email_agent_job_id: int
+    generated_cv_id: int
+
+
 class ApplicationUpdate(BaseModel):
     status: ApplicationStatus | None = None
     notes: str | None = None

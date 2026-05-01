@@ -16,6 +16,8 @@ from app.schemas.email import (
     EmailGenerateEnqueued,
     EmailGenerateRequest,
 )
+from app.services import mailer_service
+from app.services.application_service import transition_status
 from app.services.email_generator import EmailGenerationError, generate_emails
 
 router = APIRouter(prefix="/api/emails", tags=["emails"])
@@ -112,6 +114,57 @@ def approve_email(
     if row is None:
         raise HTTPException(status_code=404, detail="Email draft not found")
     row.status = "approved"
+    db.commit()
+    db.refresh(row)
+    return EmailDraftResponse.model_validate(row)
+
+
+@router.post("/{email_id}/send", response_model=EmailDraftResponse)
+def send_email(
+    email_id: int,
+    db: Session = Depends(get_db),
+    _current: User = Depends(get_current_user),
+):
+    """REAL SMTP send via mailer_service.send.
+
+    On success, flips the draft to status="sent", sets sent_at, transitions
+    the parent Application to "applied" (which also sets email_sent_at +
+    applied_at via the state-machine helper).
+
+    Distinct from POST /{email_id}/sent which only flips a flag without
+    actually delivering anything (kept for cases where the user sent
+    manually from their mail client and just needs the system to record it).
+    """
+    row = db.get(EmailDraft, email_id)
+    if row is None:
+        raise HTTPException(status_code=404, detail="Email draft not found")
+    if not row.recipient_email:
+        raise HTTPException(
+            status_code=422,
+            detail="Email draft has no recipient_email — edit before sending",
+        )
+
+    msg = mailer_service.MailMessage(
+        to_email=row.recipient_email,
+        to_name=row.recipient_name,
+        subject=row.subject or "",
+        body_text=row.body,
+    )
+    try:
+        mailer_service.send(msg, db=db)
+    except mailer_service.MailerError as e:
+        raise HTTPException(status_code=502, detail=f"SMTP send failed: {e}") from e
+
+    now = datetime.now(UTC)
+    row.status = "sent"
+    row.sent_at = now
+
+    if row.application_id is not None:
+        application = db.get(Application, row.application_id)
+        if application is not None:
+            application.email_sent_at = now
+            transition_status(db, application, "applied")
+
     db.commit()
     db.refresh(row)
     return EmailDraftResponse.model_validate(row)

@@ -14,6 +14,13 @@ class Settings(BaseSettings):
     CLAUDE_PLUGIN_PATH: str = "/app/claude-plugin"  # mount path inside API container
     CALLBACK_SECRET: str = ""  # shared token for Claude CLI -> FastAPI callbacks
     CALLBACK_API_URL: str = "http://localhost:8000"  # how the subprocess reaches us
+
+    # Anthropic API key for in-process extraction calls (CV upload parsing,
+    # Portfolio URL import). Distinct from Claude CLI subprocess auth — the
+    # CLI uses OAuth/login on the host, this is a server-side API key for
+    # synchronous one-shot calls. Empty = upload features disabled.
+    ANTHROPIC_API_KEY: str = ""
+    ANTHROPIC_MODEL_FAST: str = "claude-haiku-4-5"  # for structured extraction
     AGENT_JOB_LOG_DIR: str = "/tmp/jobhunter_agent_jobs"
     CV_STORAGE_DIR: str = "storage/cvs"  # rendered DOCX/PDF artifacts
     CV_REFERENCE_DOCX: str = ""  # optional Pandoc reference template path

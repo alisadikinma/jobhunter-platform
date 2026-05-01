@@ -26,8 +26,8 @@ from app.schemas.application import (
     KanbanBoard,
 )
 from app.services.application_service import log_activity, transition_status
-from app.services.cv_generator import generate_cv
-from app.services.email_generator import generate_emails
+from app.services.cv_generator import CVGenerationError, generate_cv
+from app.services.email_generator import EmailGenerationError, generate_emails
 
 router = APIRouter(prefix="/api/applications", tags=["applications"])
 
@@ -227,8 +227,21 @@ def easy_apply(
         db.commit()
         db.refresh(application)
 
-    generated_cv, cv_aj_id = generate_cv(db, application.id)
-    email_aj_id = generate_emails(db, application.id)
+    try:
+        generated_cv, cv_aj_id = generate_cv(db, application.id)
+    except CVGenerationError as e:
+        msg = str(e)
+        if "master cv" in msg.lower() or "master_cv" in msg.lower():
+            raise HTTPException(
+                status_code=422,
+                detail="Save your master CV first — go to Settings → CV and upload your resume.",
+            ) from e
+        raise HTTPException(status_code=422, detail=msg) from e
+
+    try:
+        email_aj_id = generate_emails(db, application.id)
+    except EmailGenerationError as e:
+        raise HTTPException(status_code=422, detail=str(e)) from e
 
     db.commit()
     return EasyApplyResponse(

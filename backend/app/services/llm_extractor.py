@@ -63,10 +63,13 @@ def extract_json_via_cli(
             "--output-format", "text",
             "--append-system-prompt-file", sys_prompt_path,
             "--model", model,
-            # Required for non-interactive subprocess: there's no human to
-            # approve any tool calls (extraction shouldn't trigger any, but
-            # defensive).
-            "--dangerously-skip-permissions",
+            # NO --dangerously-skip-permissions: it's a CLI hard-fail when
+            # running as root (which we are inside the api container per
+            # default Docker UID). For pure text generation we don't trigger
+            # any tool calls, so no permission prompts ever appear, so the
+            # flag is unnecessary. Skills that DO need tool calls (cv-tailor
+            # / cold-email via spawn_claude) must run under a non-root user
+            # — separate concern, tracked in spawn_claude.
             user_message,
         ]
         try:

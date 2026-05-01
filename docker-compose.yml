@@ -98,7 +98,11 @@ services:
       # container's `claude` invocations authenticate without an API
       # key. Same convention as the Portfolio_v2 stack on this VPS.
       # `claude login` must have been run once on the host as claudesn.
+      # Both files are needed: `.claude/` holds OAuth credentials,
+      # `.claude.json` holds the CLI's primary config (the CLI rewrites
+      # this on every invocation and refuses to start without it).
       - /home/claudesn/.claude:/home/claudesn/.claude:rw
+      - /home/claudesn/.claude.json:/home/claudesn/.claude.json:rw
     depends_on:
       db:
         condition: service_healthy

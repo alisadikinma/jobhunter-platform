@@ -336,8 +336,11 @@ before you go deeper.
   `claude_service._resolve_claude_binary()` — don't bypass it.
 - **Container shares host's Claude CLI OAuth login.** The `api` service in
   `docker-compose.yml` runs as `user: "1003:1003"` (matching VPS host user
-  `claudesn`) and bind-mounts `/home/claudesn/.claude:/home/claudesn/.claude:rw`,
-  with `HOME=/home/claudesn`. Without this, in-container `claude --print`
+  `claudesn`) and bind-mounts BOTH `/home/claudesn/.claude` (OAuth
+  credentials dir) AND `/home/claudesn/.claude.json` (CLI's primary
+  config file — the CLI rewrites this on every invocation and refuses
+  to start without it; mounting only `.claude/` is not enough), with
+  `HOME=/home/claudesn`. Without this, in-container `claude --print`
   exits 1 with empty stderr because there are no credentials in
   `/root/.claude`. Same UID also lets `--dangerously-skip-permissions`
   work (CLI hard-rejects that flag when uid=0). Pre-reqs: (a) `claude

@@ -115,8 +115,10 @@ def extract_json_via_cli(
             return json.loads(raw)
         except json.JSONDecodeError as e:
             log.warning("CLI returned invalid JSON: %s", raw[:500])
+            preview = raw[:300] if raw else "(empty)"
             raise LLMExtractError(
-                f"Failed to parse Claude CLI JSON output: {e}"
+                f"Failed to parse Claude CLI JSON output: {e}. "
+                f"CLI returned: {preview}"
             ) from e
     finally:
         try:

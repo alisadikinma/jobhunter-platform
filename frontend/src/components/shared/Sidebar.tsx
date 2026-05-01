@@ -2,13 +2,8 @@
 
 import {
   Briefcase,
-  Building2,
-  FileText,
   KanbanSquare,
-  KeyRound,
-  LayoutDashboard,
   LogOut,
-  Mail,
   Settings,
 } from "lucide-react";
 import Link from "next/link";
@@ -18,13 +13,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
 
 const NAV = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/jobs", label: "Jobs", icon: Briefcase },
   { href: "/applications", label: "Applications", icon: KanbanSquare },
-  { href: "/cv", label: "CV", icon: FileText },
-  { href: "/emails", label: "Emails", icon: Mail },
-  { href: "/portfolio", label: "Portfolio", icon: Building2 },
-  { href: "/settings/credentials", label: "Credentials", icon: KeyRound },
   { href: "/settings", label: "Settings", icon: Settings },
 ] as const;
 
@@ -35,14 +25,14 @@ export function Sidebar() {
   return (
     <aside className="flex h-screen w-56 flex-col border-r border-neutral-800 bg-neutral-950 py-4">
       <div className="px-4 pb-4">
-        <Link href="/dashboard" className="text-lg font-semibold tracking-tight">
+        <Link href="/jobs" className="text-lg font-semibold tracking-tight">
           JobHunter
         </Link>
       </div>
       <nav className="flex-1 space-y-0.5 px-2">
         {NAV.map((item) => {
-          // Match the deepest-matching href so /settings/credentials doesn't
-          // also highlight the parent /settings entry.
+          // Match the deepest-matching href so nested routes don't also
+          // highlight a parent entry.
           const matches = NAV.filter(
             (n) => pathname === n.href || pathname.startsWith(n.href + "/"),
           );

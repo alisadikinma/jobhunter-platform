@@ -20,6 +20,7 @@ export type Job = {
   suggested_variant: string | null;
   status: string;
   is_favorite: boolean;
+  user_irrelevant: boolean;
   source_url: string | null;
   scraped_at: string | null;
   posted_at: string | null;
@@ -31,9 +32,17 @@ export type JobFilters = {
   variant?: string;
   min_score?: number;
   is_favorite?: boolean;
+  include_irrelevant?: boolean;
   search?: string;
   page?: number;
   page_size?: number;
+};
+
+export type JobUpdatePatch = {
+  status?: string;
+  is_favorite?: boolean;
+  user_irrelevant?: boolean;
+  notes?: string;
 };
 
 export function useJobs(filters: JobFilters = {}) {
@@ -71,6 +80,15 @@ export function useToggleFavorite() {
   return useMutation({
     mutationFn: async (id: number) =>
       (await api.post<Job>(`/api/jobs/${id}/favorite`)).data,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["jobs"] }),
+  });
+}
+
+export function useUpdateJob() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, patch }: { id: number; patch: JobUpdatePatch }) =>
+      (await api.patch<Job>(`/api/jobs/${id}`, patch)).data,
     onSuccess: () => qc.invalidateQueries({ queryKey: ["jobs"] }),
   });
 }

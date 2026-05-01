@@ -12,11 +12,17 @@ import {
   Zap,
 } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { use, useState } from "react";
 
 import { CompanyLogo } from "@/components/shared/CompanyLogo";
 import { EasyApplyModal } from "@/components/easy-apply/EasyApplyModal";
-import { useJob, useToggleFavorite, type Job } from "@/hooks/useJobs";
+import {
+  useJob,
+  useToggleFavorite,
+  useUpdateJob,
+  type Job,
+} from "@/hooks/useJobs";
 import { formatPostedAt, formatSalary, variantLabel } from "@/lib/format";
 import { cn, variantBadgeClass } from "@/lib/utils";
 
@@ -32,8 +38,10 @@ export default function JobDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = use(params);
+  const router = useRouter();
   const { data: job, isLoading } = useJob(Number(id));
   const toggleFav = useToggleFavorite();
+  const updateJob = useUpdateJob();
   const [easyApplyOpen, setEasyApplyOpen] = useState(false);
 
   if (isLoading) return <DetailSkeleton />;
@@ -131,9 +139,20 @@ export default function JobDetailPage({
           </button>
           <button
             type="button"
-            onClick={() => {
-              console.log("Not relevant: TODO Phase 5");
+            onClick={async () => {
+              if (
+                !confirm(
+                  "Hide this job from your list? You can show hidden jobs from the filter on /jobs.",
+                )
+              )
+                return;
+              await updateJob.mutateAsync({
+                id: Number(id),
+                patch: { user_irrelevant: true },
+              });
+              router.push("/jobs");
             }}
+            disabled={updateJob.isPending}
             className="btn-ghost gap-2 px-4 py-2 text-sm text-red-400 hover:text-red-300"
           >
             <X className="h-4 w-4" strokeWidth={1.75} />

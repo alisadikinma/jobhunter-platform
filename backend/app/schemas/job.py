@@ -28,6 +28,7 @@ class JobResponse(BaseModel):
 
     status: str
     is_favorite: bool
+    user_irrelevant: bool = False
     scraped_at: datetime | None
     posted_at: datetime | None
     enriched_at: datetime | None
@@ -45,6 +46,7 @@ class JobListResponse(BaseModel):
 class JobUpdate(BaseModel):
     status: str | None = None
     is_favorite: bool | None = None
+    user_irrelevant: bool | None = None
     notes: str | None = None
 
 

@@ -36,6 +36,7 @@ class ScrapedJob(Base):
 
     status = Column(String(20), server_default="new")
     is_favorite = Column(Boolean, server_default="false")
+    user_irrelevant = Column(Boolean, nullable=False, server_default="false")
 
     enriched_at = Column(DateTime(timezone=True))
     scraped_at = Column(DateTime(timezone=True), server_default=func.now())
@@ -49,4 +50,5 @@ class ScrapedJob(Base):
         Index("idx_jobs_source", "source"),
         Index("idx_jobs_score", relevance_score.desc()),
         Index("idx_jobs_scraped_at", scraped_at.desc()),
+        Index("idx_jobs_user_irrelevant", "user_irrelevant"),
     )

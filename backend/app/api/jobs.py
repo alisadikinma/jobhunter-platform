@@ -28,6 +28,7 @@ def list_jobs(
     variant: str | None = None,
     min_score: int | None = Query(None, ge=0, le=100),
     is_favorite: bool | None = None,
+    include_irrelevant: bool = Query(False),
     search: str | None = None,
     sort: JobSortField = "relevance_score",
     order: JobSortOrder = "desc",
@@ -37,6 +38,8 @@ def list_jobs(
     _current: User = Depends(get_current_user),
 ):
     stmt = select(ScrapedJob)
+    if not include_irrelevant:
+        stmt = stmt.where(ScrapedJob.user_irrelevant == False)  # noqa: E712
     if status:
         stmt = stmt.where(ScrapedJob.status == status)
     if source:

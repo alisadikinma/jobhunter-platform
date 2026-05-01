@@ -4,9 +4,11 @@ import {
   Briefcase,
   ChevronRight,
   CircleDashed,
+  EyeOff,
   ExternalLink,
   Filter,
   MapPin,
+  RotateCcw,
   Search,
   Star,
   X,
@@ -17,6 +19,7 @@ import { useMemo, useState } from "react";
 import {
   useJobs,
   useToggleFavorite,
+  useUpdateJob,
   type Job,
   type JobFilters,
 } from "@/hooks/useJobs";
@@ -43,6 +46,8 @@ export default function JobsPage() {
   const [filterPanelOpen, setFilterPanelOpen] = useState(false);
   const { data, isLoading } = useJobs(filters);
   const toggleFav = useToggleFavorite();
+  const updateJob = useUpdateJob();
+  const showHidden = filters.include_irrelevant === true;
 
   const activeFilters = useMemo(() => {
     const items: { key: keyof JobFilters; label: string }[] = [];
@@ -85,6 +90,25 @@ export default function JobsPage() {
               }
             />
           </div>
+          <button
+            type="button"
+            onClick={() =>
+              setFilters((f) => ({
+                ...f,
+                include_irrelevant: f.include_irrelevant ? undefined : true,
+                page: 1,
+              }))
+            }
+            className={cn(
+              "btn-ghost shrink-0 gap-2",
+              showHidden && "bg-neutral-800 text-white",
+            )}
+            aria-pressed={showHidden}
+            title="Toggle hidden / not-relevant jobs"
+          >
+            <EyeOff className="h-4 w-4" strokeWidth={1.75} />
+            {showHidden ? "Showing hidden" : "Show hidden"}
+          </button>
           <button
             type="button"
             onClick={() => setFilterPanelOpen((v) => !v)}
@@ -207,6 +231,13 @@ export default function JobsPage() {
                 key={job.id}
                 job={job}
                 onToggleFav={() => toggleFav.mutate(job.id)}
+                onRestore={() =>
+                  updateJob.mutate({
+                    id: job.id,
+                    patch: { user_irrelevant: false },
+                  })
+                }
+                isRestoring={updateJob.isPending}
               />
             ))}
           </ul>
@@ -226,12 +257,28 @@ export default function JobsPage() {
 
 /* ──────────────────────────────────────────────────────────────────── */
 
-function JobRow({ job, onToggleFav }: { job: Job; onToggleFav: () => void }) {
+function JobRow({
+  job,
+  onToggleFav,
+  onRestore,
+  isRestoring,
+}: {
+  job: Job;
+  onToggleFav: () => void;
+  onRestore: () => void;
+  isRestoring: boolean;
+}) {
   const posted = formatPostedAt(job.posted_at ?? job.scraped_at);
   const salary = formatSalary(job.salary_min, job.salary_max, "USD");
+  const hidden = job.user_irrelevant === true;
 
   return (
-    <li className="row-press relative flex items-stretch gap-3 px-4 py-3.5 hover:bg-neutral-900/70">
+    <li
+      className={cn(
+        "row-press relative flex items-stretch gap-3 px-4 py-3.5 hover:bg-neutral-900/70",
+        hidden && "opacity-50 hover:opacity-80",
+      )}
+    >
       <button
         type="button"
         onClick={(e) => {
@@ -264,6 +311,11 @@ function JobRow({ job, onToggleFav }: { job: Job; onToggleFav: () => void }) {
                 )}
               >
                 {variantLabel(job.suggested_variant)}
+              </span>
+            )}
+            {hidden && (
+              <span className="shrink-0 rounded-full bg-neutral-800/80 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-neutral-400">
+                hidden
               </span>
             )}
           </div>
@@ -307,9 +359,25 @@ function JobRow({ job, onToggleFav }: { job: Job; onToggleFav: () => void }) {
         </Link>
       </div>
 
-      <div className="flex shrink-0 flex-col items-end justify-between pl-2">
+      <div className="flex shrink-0 flex-col items-end justify-between gap-2 pl-2">
         <ScoreBadge value={job.relevance_score} />
-        <ChevronRight className="h-4 w-4 text-neutral-700 group-hover:text-neutral-400" strokeWidth={1.75} />
+        {hidden ? (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onRestore();
+            }}
+            disabled={isRestoring}
+            className="inline-flex items-center gap-1 rounded-full border border-neutral-700 bg-neutral-900 px-2 py-0.5 text-[11px] text-neutral-300 transition-colors hover:border-brand-blue hover:text-brand-blue disabled:opacity-50"
+            title="Restore — un-hide this job"
+          >
+            <RotateCcw className="h-3 w-3" strokeWidth={1.75} />
+            Restore
+          </button>
+        ) : (
+          <ChevronRight className="h-4 w-4 text-neutral-700 group-hover:text-neutral-400" strokeWidth={1.75} />
+        )}
       </div>
     </li>
   );

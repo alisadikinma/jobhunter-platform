@@ -7,9 +7,12 @@ import { api } from "@/lib/api";
 export type EmailDraft = {
   id: number;
   application_id: number | null;
+  job_id: number | null;
   email_type: string;
   subject: string | null;
   body: string;
+  recipient_email: string | null;
+  recipient_name: string | null;
   status: string;
   strategy: string | null;
   sent_at: string | null;
@@ -31,6 +34,29 @@ export function useEditEmail() {
   return useMutation({
     mutationFn: async (args: { id: number; patch: Partial<EmailDraft> }) =>
       (await api.put<EmailDraft>(`/api/emails/${args.id}`, args.patch)).data,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["emails"] }),
+  });
+}
+
+export function useUpdateEmail() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({
+      id,
+      patch,
+    }: {
+      id: number;
+      patch: Partial<EmailDraft>;
+    }) => (await api.put<EmailDraft>(`/api/emails/${id}`, patch)).data,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["emails"] }),
+  });
+}
+
+export function useSendEmail() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: number) =>
+      (await api.post<EmailDraft>(`/api/emails/${id}/send`)).data,
     onSuccess: () => qc.invalidateQueries({ queryKey: ["emails"] }),
   });
 }

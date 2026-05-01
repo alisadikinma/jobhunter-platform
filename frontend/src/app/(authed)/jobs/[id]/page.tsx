@@ -12,9 +12,10 @@ import {
   Zap,
 } from "lucide-react";
 import Link from "next/link";
-import { use } from "react";
+import { use, useState } from "react";
 
 import { CompanyLogo } from "@/components/shared/CompanyLogo";
+import { EasyApplyModal } from "@/components/easy-apply/EasyApplyModal";
 import { useJob, useToggleFavorite, type Job } from "@/hooks/useJobs";
 import { formatPostedAt, formatSalary, variantLabel } from "@/lib/format";
 import { cn, variantBadgeClass } from "@/lib/utils";
@@ -33,6 +34,7 @@ export default function JobDetailPage({
   const { id } = use(params);
   const { data: job, isLoading } = useJob(Number(id));
   const toggleFav = useToggleFavorite();
+  const [easyApplyOpen, setEasyApplyOpen] = useState(false);
 
   if (isLoading) return <DetailSkeleton />;
   if (!job) return <NotFound />;
@@ -105,9 +107,7 @@ export default function JobDetailPage({
         <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
-            onClick={() => {
-              console.log("Easy Apply: TODO Phase 4");
-            }}
+            onClick={() => setEasyApplyOpen(true)}
             className="btn-cta gap-2 px-4 py-2 text-sm"
           >
             <Zap className="h-4 w-4" strokeWidth={1.75} />
@@ -180,6 +180,13 @@ export default function JobDetailPage({
           <JobDetailsCard job={job} />
         </aside>
       </div>
+
+      {easyApplyOpen && (
+        <EasyApplyModal
+          jobId={Number(id)}
+          onClose={() => setEasyApplyOpen(false)}
+        />
+      )}
     </div>
   );
 }

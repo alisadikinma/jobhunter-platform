@@ -143,12 +143,12 @@ def test_import_url_requires_auth():
 
 
 def test_import_url_strips_code_fences(api, monkeypatch):
-    """Hits the real extractor with mocked Firecrawl + Anthropic so the
-    code-fence-stripping branch in `portfolio_extractor` is exercised.
+    """Hits the real extractor with mocked Firecrawl + Claude CLI so the
+    code-fence-stripping branch in `llm_extractor` is exercised.
     """
     client, SessionLocal = api
 
-    from app.services import portfolio_extractor
+    from app.services import portfolio_extractor, llm_extractor
     from app.services.firecrawl_service import FirecrawlService
     from unittest.mock import MagicMock
 
@@ -172,7 +172,7 @@ def test_import_url_strips_code_fences(api, monkeypatch):
         lambda db: fake_firecrawl,
     )
 
-    # Mock Anthropic API call to return JSON wrapped in ```json fences.
+    # Mock Claude CLI subprocess to return JSON wrapped in ```json fences.
     fenced_response = (
         "```json\n"
         '{"items": [{"title": "Fenced Project", "description": "x", '
@@ -180,28 +180,17 @@ def test_import_url_strips_code_fences(api, monkeypatch):
         "```"
     )
 
-    class _FakeResp:
-        def raise_for_status(self):
-            pass
+    class _FakeRun:
+        returncode = 0
+        stdout = fenced_response
+        stderr = ""
 
-        def json(self):
-            return {"content": [{"type": "text", "text": fenced_response}]}
-
-    class _FakeClient:
-        def __init__(self, *a, **kw):
-            pass
-
-        def __enter__(self):
-            return self
-
-        def __exit__(self, *a):
-            return None
-
-        def post(self, *a, **kw):
-            return _FakeResp()
-
-    monkeypatch.setattr(portfolio_extractor.httpx, "Client", _FakeClient)
-    monkeypatch.setattr(portfolio_extractor.settings, "ANTHROPIC_API_KEY", "test-key")
+    monkeypatch.setattr(
+        llm_extractor.subprocess, "run", lambda *_a, **_kw: _FakeRun()
+    )
+    monkeypatch.setattr(
+        llm_extractor, "_resolve_claude_binary", lambda: "claude"
+    )
 
     r = client.post(
         "/api/portfolio/import-url",

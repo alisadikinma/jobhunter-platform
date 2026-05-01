@@ -4,22 +4,20 @@ Two-stage pipeline:
 1. extract_text_from_upload(file_bytes, mime_type) -> raw text
 2. parse_cv_to_json_resume(raw_text) -> dict matching MasterCVContent schema
 
-Calls Anthropic API directly via httpx — distinct from the Claude CLI
-subprocess (used by cv-tailor skill). The CLI is for long-running
-generation; this is a single fast extraction (~5s).
+Stage 2 invokes the Claude CLI synchronously via `llm_extractor.
+extract_json_via_cli` — same OAuth login as the cv-tailor skill, no
+separate API key needed.
 """
 from __future__ import annotations
 
 import io
-import json
 import logging
 from typing import Any
 
-import httpx
 from docx import Document
 from pypdf import PdfReader
 
-from app.config import settings
+from app.services.llm_extractor import LLMExtractError, extract_json_via_cli
 
 log = logging.getLogger(__name__)
 
@@ -132,56 +130,17 @@ def extract_text_from_upload(
 
 
 def parse_cv_to_json_resume(raw_text: str) -> dict[str, Any]:
-    """Send raw_text to Anthropic API, get back JSON Resume dict."""
+    """Send raw_text to Claude CLI, get back JSON Resume dict.
+
+    Auth: the host's `claude` CLI OAuth login. No API key required.
+    """
     if not raw_text or not raw_text.strip():
         raise CVParseError("Empty source text — nothing to parse")
 
-    if not settings.ANTHROPIC_API_KEY:
-        raise CVParseError(
-            "ANTHROPIC_API_KEY not configured — set in .env to enable CV upload parsing"
+    try:
+        return extract_json_via_cli(
+            system_prompt=_EXTRACTION_SYSTEM_PROMPT,
+            user_message=f"Extract JSON Resume from this CV:\n\n{raw_text[:50000]}",
         )
-
-    headers = {
-        "x-api-key": settings.ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01",
-        "content-type": "application/json",
-    }
-    payload = {
-        "model": settings.ANTHROPIC_MODEL_FAST,
-        "max_tokens": 4096,
-        "system": _EXTRACTION_SYSTEM_PROMPT,
-        "messages": [
-            {
-                "role": "user",
-                "content": f"Extract JSON Resume from this CV:\n\n{raw_text[:50000]}",
-            }
-        ],
-    }
-    try:
-        with httpx.Client(timeout=60) as client:
-            resp = client.post(
-                "https://api.anthropic.com/v1/messages",
-                headers=headers,
-                json=payload,
-            )
-            resp.raise_for_status()
-            body = resp.json()
-    except httpx.HTTPError as e:
-        raise CVParseError(f"Anthropic API call failed: {e}") from e
-
-    blocks = body.get("content") or []
-    text_parts = [b.get("text", "") for b in blocks if b.get("type") == "text"]
-    raw_json = "\n".join(text_parts).strip()
-
-    # Strip ```json fences if model added them despite the instruction.
-    if raw_json.startswith("```"):
-        raw_json = raw_json.split("\n", 1)[1] if "\n" in raw_json else raw_json
-        if raw_json.endswith("```"):
-            raw_json = raw_json.rsplit("```", 1)[0]
-        raw_json = raw_json.strip()
-
-    try:
-        return json.loads(raw_json)
-    except json.JSONDecodeError as e:
-        log.warning("LLM returned invalid JSON: %s", raw_json[:500])
-        raise CVParseError(f"Failed to parse LLM JSON output: {e}") from e
+    except LLMExtractError as e:
+        raise CVParseError(str(e)) from e

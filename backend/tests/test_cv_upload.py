@@ -201,44 +201,27 @@ def test_upload_requires_auth():
 
 
 def test_parse_handles_fenced_json(monkeypatch):
-    """parse_cv_to_json_resume must strip ```json … ``` fences if the model adds them."""
-    from app.services import cv_parser
+    """parse_cv_to_json_resume must strip ```json … ``` fences if the CLI wraps output."""
+    from app.services import cv_parser, llm_extractor
 
-    monkeypatch.setattr(cv_parser.settings, "ANTHROPIC_API_KEY", "test-key")
+    fenced_stdout = (
+        "```json\n"
+        + '{"basics":{"name":"X","email":"x@x.com","summary_variants":'
+        + '{"vibe_coding":"a","ai_automation":"b","ai_video":"c"}}}'
+        + "\n```"
+    )
 
-    class _FakeResp:
-        status_code = 200
+    class _FakeRun:
+        returncode = 0
+        stdout = fenced_stdout
+        stderr = ""
 
-        def raise_for_status(self):
-            return None
-
-        def json(self):
-            return {
-                "content": [
-                    {
-                        "type": "text",
-                        "text": "```json\n"
-                        + '{"basics":{"name":"X","email":"x@x.com","summary_variants":'
-                        + '{"vibe_coding":"a","ai_automation":"b","ai_video":"c"}}}'
-                        + "\n```",
-                    }
-                ]
-            }
-
-    class _FakeClient:
-        def __init__(self, *_a, **_kw):
-            pass
-
-        def __enter__(self):
-            return self
-
-        def __exit__(self, *_a):
-            return None
-
-        def post(self, *_a, **_kw):
-            return _FakeResp()
-
-    monkeypatch.setattr(cv_parser.httpx, "Client", _FakeClient)
+    monkeypatch.setattr(
+        llm_extractor.subprocess, "run", lambda *_a, **_kw: _FakeRun()
+    )
+    monkeypatch.setattr(
+        llm_extractor, "_resolve_claude_binary", lambda: "claude"
+    )
 
     out = cv_parser.parse_cv_to_json_resume("Resume body")
     assert out["basics"]["name"] == "X"

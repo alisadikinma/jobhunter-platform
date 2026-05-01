@@ -1,21 +1,19 @@
-"""Extract portfolio entries from arbitrary URL via Firecrawl + Anthropic.
+"""Extract portfolio entries from arbitrary URL via Firecrawl + Claude CLI.
 
-Firecrawl scrapes the page to clean markdown. Anthropic API parses the
+Firecrawl scrapes the page to clean markdown. Claude CLI parses the
 markdown to find project/case-study entries and returns a list. Used by
 the /api/portfolio/import-url endpoint.
 """
 from __future__ import annotations
 
-import json
 import logging
 from typing import Any
 from urllib.parse import urlparse
 
-import httpx
 from sqlalchemy.orm import Session
 
-from app.config import settings
 from app.services.firecrawl_service import FirecrawlService
+from app.services.llm_extractor import LLMExtractError, extract_json_via_cli
 
 log = logging.getLogger(__name__)
 
@@ -52,15 +50,11 @@ Rules:
 
 
 def extract_portfolio_from_url(db: Session, url: str) -> list[dict[str, Any]]:
-    """Scrape URL via Firecrawl pool, extract projects via Anthropic API.
+    """Scrape URL via Firecrawl pool, extract projects via Claude CLI.
 
     Returns list of dicts ready to insert as portfolio_assets rows.
+    Auth: host's `claude` CLI OAuth login. No API key required.
     """
-    if not settings.ANTHROPIC_API_KEY:
-        raise PortfolioExtractError(
-            "ANTHROPIC_API_KEY not configured — set in .env to enable URL import"
-        )
-
     with FirecrawlService(db=db) as service:
         result = service.scrape(url)
 
@@ -71,54 +65,16 @@ def extract_portfolio_from_url(db: Session, url: str) -> list[dict[str, Any]]:
             f"Firecrawl returned empty content for {url} ({err})"
         )
 
-    headers = {
-        "x-api-key": settings.ANTHROPIC_API_KEY,
-        "anthropic-version": "2023-06-01",
-        "content-type": "application/json",
-    }
-    payload = {
-        "model": settings.ANTHROPIC_MODEL_FAST,
-        "max_tokens": 4096,
-        "system": _EXTRACTION_SYSTEM_PROMPT,
-        "messages": [
-            {
-                "role": "user",
-                "content": (
-                    "Extract portfolio projects from this content:\n\n"
-                    + markdown[:50000]
-                ),
-            }
-        ],
-    }
     try:
-        with httpx.Client(timeout=60) as client:
-            resp = client.post(
-                "https://api.anthropic.com/v1/messages",
-                headers=headers,
-                json=payload,
-            )
-            resp.raise_for_status()
-            body = resp.json()
-    except httpx.HTTPError as e:
-        raise PortfolioExtractError(f"Anthropic API call failed: {e}") from e
-
-    blocks = body.get("content") or []
-    raw_json = "\n".join(
-        b.get("text", "") for b in blocks if b.get("type") == "text"
-    ).strip()
-
-    # Strip code fences if the model decided to wrap the JSON despite the prompt.
-    if raw_json.startswith("```"):
-        raw_json = raw_json.split("\n", 1)[1] if "\n" in raw_json else raw_json
-        if raw_json.endswith("```"):
-            raw_json = raw_json.rsplit("```", 1)[0]
-        raw_json = raw_json.strip()
-
-    try:
-        parsed = json.loads(raw_json)
-    except json.JSONDecodeError as e:
-        log.warning("LLM returned invalid JSON: %s", raw_json[:500])
-        raise PortfolioExtractError(f"Failed to parse LLM output: {e}") from e
+        parsed = extract_json_via_cli(
+            system_prompt=_EXTRACTION_SYSTEM_PROMPT,
+            user_message=(
+                "Extract portfolio projects from this content:\n\n"
+                + markdown[:50000]
+            ),
+        )
+    except LLMExtractError as e:
+        raise PortfolioExtractError(str(e)) from e
 
     items = parsed.get("items") or []
     if not isinstance(items, list):

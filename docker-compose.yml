@@ -61,11 +61,17 @@ services:
   api:
     build:
       context: ./backend
+    # Run as host's `claudesn` UID/GID so the container can share the
+    # host's Claude CLI OAuth login at /home/claudesn/.claude. Same UID
+    # also avoids file-ownership conflicts when the CLI refreshes its
+    # access token on the bind-mounted credentials file.
+    user: "1003:1003"
     networks:
       - default   # internal: db + redis + firecrawl
       - proxy     # external: shared with Traefik (defined at bottom)
     environment:
       - ENV=prod
+      - HOME=/home/claudesn
       - DATABASE_URL=postgresql://jobhunter:${POSTGRES_PASSWORD}@db:5432/jobhunter
       - JWT_SECRET=${JWT_SECRET:?set JWT_SECRET (>=32 bytes)}
       - ADMIN_EMAIL=${ADMIN_EMAIL}
@@ -88,6 +94,11 @@ services:
     # Override JOBHUNTER_PLUGIN_REF build arg to pin a tag/branch.
     volumes:
       - cv_storage:/app/storage/cvs
+      # Share the host claudesn user's Claude CLI OAuth login so the
+      # container's `claude` invocations authenticate without an API
+      # key. Same convention as the Portfolio_v2 stack on this VPS.
+      # `claude login` must have been run once on the host as claudesn.
+      - /home/claudesn/.claude:/home/claudesn/.claude:rw
     depends_on:
       db:
         condition: service_healthy

@@ -334,6 +334,16 @@ before you go deeper.
   `claude`, `claude.cmd`, `claude.ps1`. Bare `subprocess.Popen(['claude'])`
   fails with `WinError 2`. Resolved via `shutil.which()` in
   `claude_service._resolve_claude_binary()` — don't bypass it.
+- **Container shares host's Claude CLI OAuth login.** The `api` service in
+  `docker-compose.yml` runs as `user: "1003:1003"` (matching VPS host user
+  `claudesn`) and bind-mounts `/home/claudesn/.claude:/home/claudesn/.claude:rw`,
+  with `HOME=/home/claudesn`. Without this, in-container `claude --print`
+  exits 1 with empty stderr because there are no credentials in
+  `/root/.claude`. Same UID also lets `--dangerously-skip-permissions`
+  work (CLI hard-rejects that flag when uid=0). Pre-reqs: (a) `claude
+  login` already run once on the host as `claudesn` (Portfolio_v2 stack
+  did this); (b) any pre-existing named volumes chowned to 1003:1003,
+  e.g. `docker run --rm -v jobhunter_cv_storage:/d alpine chown -R 1003:1003 /d`.
 - **Slash commands in Claude CLI `-p` print mode do NOT resolve as commands.**
   Discovered during smoke test: `claude -p "/jobhunter:job-score ..."` echoes
   back `Unknown command`. Slash commands are an interactive-mode feature.

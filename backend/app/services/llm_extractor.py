@@ -92,9 +92,14 @@ def extract_json_via_cli(
             ) from e
 
         if result.returncode != 0:
-            stderr_tail = (result.stderr or "")[-500:]
+            # CLI sometimes writes auth/permission errors to stdout (not
+            # stderr) when running in --print mode. Surface both so the
+            # 502 message is actionable instead of "exited 1: ".
+            stderr_tail = (result.stderr or "").strip()[-500:]
+            stdout_tail = (result.stdout or "").strip()[-500:]
+            tail = stderr_tail or stdout_tail or "(no output captured)"
             raise LLMExtractError(
-                f"Claude CLI exited {result.returncode}: {stderr_tail}"
+                f"Claude CLI exited {result.returncode}: {tail}"
             )
 
         raw = (result.stdout or "").strip()

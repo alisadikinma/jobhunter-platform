@@ -50,6 +50,13 @@ RUN pandoc --print-default-data-file=reference.docx > /app/templates/cv-template
 
 RUN mkdir -p /tmp/jobhunter_agent_jobs /app/storage/cvs
 
+# Pre-chown writable dirs to UID 1003 — matches the VPS host user
+# (claudesn) so the container can share `~/.claude` OAuth credentials
+# via bind mount, AND `--dangerously-skip-permissions` works for skills
+# (CLI hard-rejects that flag when running as root). Fresh named volumes
+# mounted on /app/storage/cvs at runtime inherit these perms.
+RUN chown -R 1003:1003 /tmp/jobhunter_agent_jobs /app/storage
+
 ENV CLAUDE_PLUGIN_PATH=/app/claude-plugin
 ENV CV_STORAGE_DIR=/app/storage/cvs
 ENV CV_REFERENCE_DOCX=/app/templates/cv-template.docx

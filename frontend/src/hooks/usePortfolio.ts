@@ -38,6 +38,29 @@ export function useCreatePortfolio() {
   });
 }
 
+// Alias used by the Add asset modal — intent reads cleaner there.
+export const useCreatePortfolioAsset = useCreatePortfolio;
+
+export type ImportPortfolioUrlResponse = {
+  count: number;
+  items: PortfolioAsset[];
+  skipped: number;
+  skipped_reasons: string[];
+  status: "ok" | "partial";
+};
+
+export function useImportPortfolioFromURL() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (url: string) =>
+      (await api.post<ImportPortfolioUrlResponse>(
+        "/api/portfolio/import-url",
+        { url },
+      )).data,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["portfolio"] }),
+  });
+}
+
 export function useUpdatePortfolio() {
   const qc = useQueryClient();
   return useMutation({

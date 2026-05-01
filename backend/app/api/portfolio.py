@@ -1,7 +1,9 @@
-"""Portfolio assets CRUD + hybrid audit trigger."""
+"""Portfolio assets CRUD + hybrid audit trigger + URL import."""
 from datetime import UTC, datetime
+from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, status
+from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from app.config import settings
@@ -17,8 +19,27 @@ from app.schemas.portfolio import (
     PortfolioAuditRun,
 )
 from app.services.portfolio_auditor import scan
+from app.services.portfolio_extractor import (
+    PortfolioExtractError,
+    extract_portfolio_from_url,
+)
 
 router = APIRouter(prefix="/api/portfolio", tags=["portfolio"])
+
+
+_VARIANT_VALUES = {"vibe_coding", "ai_automation", "ai_video"}
+
+
+class PortfolioImportUrlRequest(BaseModel):
+    url: str = Field(min_length=1, max_length=2000)
+
+
+class PortfolioImportUrlResponse(BaseModel):
+    count: int
+    items: list[PortfolioAssetResponse]
+    skipped: int = 0
+    skipped_reasons: list[str] = Field(default_factory=list)
+    status: Literal["ok", "partial"] = "ok"
 
 
 def _default_scan_paths() -> list[str]:
@@ -127,3 +148,74 @@ def audit(
 ):
     paths = (body.scan_paths if body and body.scan_paths else None) or _default_scan_paths()
     return scan(db, paths)
+
+
+@router.post("/import-url", response_model=PortfolioImportUrlResponse)
+def import_from_url(
+    body: PortfolioImportUrlRequest,
+    db: Session = Depends(get_db),
+    _current: User = Depends(get_current_user),
+):
+    """Scrape arbitrary portfolio URL → Anthropic extracts projects → bulk-insert as drafts.
+
+    Imported items get auto_generated=True, status="draft" so the user
+    reviews them in the same flow as auto-scanned plugin/project entries.
+    """
+    try:
+        items = extract_portfolio_from_url(db, body.url)
+    except PortfolioExtractError as e:
+        # 502 because the upstream (Firecrawl/Anthropic) is the failure source.
+        raise HTTPException(status_code=502, detail=str(e)) from e
+
+    created: list[PortfolioAsset] = []
+    skipped_reasons: list[str] = []
+
+    for raw in items:
+        if not isinstance(raw, dict):
+            skipped_reasons.append("non-dict item")
+            continue
+
+        title = (raw.get("title") or "").strip()
+        if not title:
+            skipped_reasons.append("missing title")
+            continue
+
+        description = (raw.get("description") or "").strip() or None
+        url_field = raw.get("url") or None
+        tech_stack_raw = raw.get("tech_stack") or []
+        relevance_raw = raw.get("relevance_hint") or []
+        source = raw.get("_source")
+
+        tech_stack = [str(t).strip() for t in tech_stack_raw if str(t).strip()]
+        relevance_hint = [
+            str(v).strip() for v in relevance_raw if str(v).strip() in _VARIANT_VALUES
+        ]
+
+        metrics: dict | None = {"source": source} if source else None
+
+        row = PortfolioAsset(
+            asset_type="external",
+            title=title[:255],
+            description=description,
+            url=url_field,
+            tech_stack=tech_stack or None,
+            relevance_hint=relevance_hint or None,
+            metrics=metrics,
+            status="draft",
+            auto_generated=True,
+            display_priority=50,
+        )
+        db.add(row)
+        created.append(row)
+
+    db.commit()
+    for row in created:
+        db.refresh(row)
+
+    return PortfolioImportUrlResponse(
+        count=len(created),
+        items=[PortfolioAssetResponse.model_validate(r) for r in created],
+        skipped=len(skipped_reasons),
+        skipped_reasons=skipped_reasons,
+        status="partial" if skipped_reasons else "ok",
+    )

@@ -111,6 +111,10 @@ class MasterCVUpdateRequest(BaseModel):
     raw_markdown: str | None = None
 
 
+class MasterCVImportURLRequest(BaseModel):
+    url: str = Field(min_length=1)
+
+
 # --- generated CV (Phase 10) ---------------------------------------
 
 class CVGenerateRequest(BaseModel):

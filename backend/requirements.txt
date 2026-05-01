@@ -24,6 +24,7 @@ apify-client>=1.0
 
 # Document generation
 python-docx==1.1.*
+pypdf>=5.0
 
 # Scheduling
 apscheduler==3.10.*

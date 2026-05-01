@@ -4,9 +4,11 @@ Phase 8: master CV CRUD (this file).
 Phase 10: generated CV / tailor endpoints extend this router.
 """
 from pathlib import Path
+from urllib.parse import urlparse
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from fastapi.responses import FileResponse
+from pydantic import ValidationError
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -22,11 +24,20 @@ from app.schemas.cv import (
     CVGenerateRequest,
     GeneratedCVResponse,
     GeneratedCVUpdate,
+    MasterCVContent,
+    MasterCVImportURLRequest,
     MasterCVResponse,
     MasterCVUpdateRequest,
 )
 from app.services.cv_generator import CVGenerationError, generate_cv
+from app.services.cv_parser import (
+    CVParseError,
+    extract_text_from_upload,
+    is_supported_upload,
+    parse_cv_to_json_resume,
+)
 from app.services.docx_service import ConversionError, docx_to_pdf, markdown_to_docx
+from app.services.firecrawl_service import FirecrawlService
 from app.services.scorer_service import score_cv
 
 router = APIRouter(prefix="/api/cv", tags=["cv"])
@@ -80,6 +91,135 @@ def update_master(
     db.add(new_row)
     db.commit()
     db.refresh(new_row)
+    return MasterCVResponse(
+        id=new_row.id,
+        version=new_row.version,
+        is_active=new_row.is_active,
+        content=new_row.content,
+        source_type=new_row.source_type,
+    )
+
+
+def _save_new_master(
+    db: Session, content_dict: dict, *, source_type: str, raw_markdown: str | None = None
+) -> MasterCV:
+    """Validate + persist a new master_cv row, deactivating any current active row."""
+    try:
+        validated = MasterCVContent.model_validate(content_dict)
+    except ValidationError as e:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Parsed content does not match Master CV schema: {e.errors()}",
+        ) from e
+
+    current = _active_master(db)
+    next_version = (current.version + 1) if current else 1
+    if current is not None:
+        current.is_active = False
+
+    new_row = MasterCV(
+        version=next_version,
+        content=validated.model_dump(mode="json"),
+        raw_markdown=raw_markdown,
+        is_active=True,
+        source_type=source_type,
+    )
+    db.add(new_row)
+    db.commit()
+    db.refresh(new_row)
+    return new_row
+
+
+@router.post(
+    "/master/upload",
+    response_model=MasterCVResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def upload_master(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    _current: User = Depends(get_current_user),
+):
+    """Accept a PDF/DOCX/MD/TXT upload, extract text, run LLM parse, save as new active version."""
+    filename = file.filename or ""
+    mime_type = file.content_type or ""
+    if not is_supported_upload(mime_type, filename):
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                f"Unsupported file type: {mime_type or 'unknown'} ({filename}). "
+                "Allowed: .pdf, .docx, .md, .txt"
+            ),
+        )
+
+    file_bytes = file.file.read()
+    if not file_bytes:
+        raise HTTPException(status_code=422, detail="Uploaded file is empty")
+
+    try:
+        raw_text = extract_text_from_upload(file_bytes, mime_type, filename)
+    except CVParseError as e:
+        raise HTTPException(status_code=422, detail=str(e)) from e
+
+    if not raw_text.strip():
+        raise HTTPException(
+            status_code=422,
+            detail="No text extracted from upload — file may be image-only or corrupted",
+        )
+
+    try:
+        parsed = parse_cv_to_json_resume(raw_text)
+    except CVParseError as e:
+        raise HTTPException(status_code=502, detail=str(e)) from e
+
+    new_row = _save_new_master(db, parsed, source_type="upload", raw_markdown=raw_text)
+    return MasterCVResponse(
+        id=new_row.id,
+        version=new_row.version,
+        is_active=new_row.is_active,
+        content=new_row.content,
+        source_type=new_row.source_type,
+    )
+
+
+@router.post(
+    "/master/import-url",
+    response_model=MasterCVResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def import_master_from_url(
+    body: MasterCVImportURLRequest,
+    db: Session = Depends(get_db),
+    _current: User = Depends(get_current_user),
+):
+    """Scrape a portfolio URL via Firecrawl, parse to JSON Resume, save as new active version."""
+    parsed_url = urlparse(body.url)
+    if parsed_url.scheme not in {"http", "https"} or not parsed_url.netloc:
+        raise HTTPException(status_code=422, detail="URL must be an absolute http(s) URL")
+
+    try:
+        with FirecrawlService(db=db) as fc:
+            result = fc.scrape(body.url)
+    except Exception as e:  # network/pool failure — surface as 502
+        raise HTTPException(status_code=502, detail=f"Firecrawl scrape failed: {e}") from e
+
+    markdown = (result or {}).get("markdown") or ""
+    if not markdown.strip():
+        err = (result or {}).get("error") or "empty response"
+        raise HTTPException(
+            status_code=502,
+            detail=f"Firecrawl returned no content for {body.url}: {err}",
+        )
+
+    try:
+        parsed = parse_cv_to_json_resume(markdown)
+    except CVParseError as e:
+        raise HTTPException(status_code=502, detail=str(e)) from e
+
+    domain = parsed_url.netloc.lower()
+    new_row = _save_new_master(
+        db, parsed, source_type=f"url:{domain}", raw_markdown=markdown
+    )
     return MasterCVResponse(
         id=new_row.id,
         version=new_row.version,

@@ -34,6 +34,7 @@ export function useMasterCV() {
           version: number;
           is_active: boolean;
           content: MasterCVContent;
+          source_type: string | null;
         }>("/api/cv/master");
         return data;
       } catch (err) {
@@ -50,6 +51,46 @@ export function useSaveMasterCV() {
   return useMutation({
     mutationFn: async (content: MasterCVContent) =>
       (await api.put("/api/cv/master", { content })).data,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["cv", "master"] }),
+  });
+}
+
+export type MasterCVResult = {
+  id: number;
+  version: number;
+  is_active: boolean;
+  content: MasterCVContent;
+  source_type: string | null;
+};
+
+export function useUploadMasterCV() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (file: File) => {
+      const form = new FormData();
+      form.append("file", file);
+      const { data } = await api.post<MasterCVResult>(
+        "/api/cv/master/upload",
+        form,
+        { headers: { "Content-Type": "multipart/form-data" }, timeout: 120_000 },
+      );
+      return data;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["cv", "master"] }),
+  });
+}
+
+export function useImportMasterCVFromURL() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (url: string) => {
+      const { data } = await api.post<MasterCVResult>(
+        "/api/cv/master/import-url",
+        { url },
+        { timeout: 120_000 },
+      );
+      return data;
+    },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["cv", "master"] }),
   });
 }

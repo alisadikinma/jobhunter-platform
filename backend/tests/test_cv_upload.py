@@ -130,20 +130,10 @@ def test_upload_invalid_file_returns_422(api, monkeypatch):
 def test_import_url_success(api, monkeypatch):
     client, SessionLocal = api
 
-    class _FakeFirecrawl:
-        def __init__(self, **_kw):
-            pass
-
-        def __enter__(self):
-            return self
-
-        def __exit__(self, *_a):
-            return None
-
-        def scrape(self, url, opts=None):
-            return {"markdown": "# Ali Sadikin\nPortfolio content", "error": None}
-
-    monkeypatch.setattr("app.api.cv.FirecrawlService", _FakeFirecrawl)
+    monkeypatch.setattr(
+        "app.api.cv.scrape_multiple_pages",
+        lambda urls, db, **kw: "# Ali Sadikin\nPortfolio content",
+    )
     monkeypatch.setattr(
         "app.api.cv.parse_cv_to_json_resume",
         lambda raw: _canned_cv(),
@@ -165,23 +155,78 @@ def test_import_url_success(api, monkeypatch):
         assert rows[0].source_type.startswith("url:")
 
 
-def test_import_url_firecrawl_empty_returns_502(api, monkeypatch):
+def test_import_url_multi_page_fetches_all_4_urls(api, monkeypatch):
+    """Endpoint must derive 4 URLs from a single base + call scrape_multiple_pages."""
     client, _ = api
 
-    class _EmptyFirecrawl:
-        def __init__(self, **_kw):
-            pass
+    captured = {}
 
-        def __enter__(self):
-            return self
+    def _fake_multi(urls, db, **kwargs):
+        captured["urls"] = list(urls)
+        return "multi-page concatenated markdown"
 
-        def __exit__(self, *_a):
-            return None
+    monkeypatch.setattr("app.api.cv.scrape_multiple_pages", _fake_multi)
+    monkeypatch.setattr(
+        "app.api.cv.parse_cv_to_json_resume",
+        lambda raw: _canned_cv(),
+    )
 
-        def scrape(self, url, opts=None):
-            return {"markdown": "", "error": "scrape failed"}
+    resp = client.post(
+        "/api/cv/master/import-url",
+        json={"url": "https://alisadikinma.com/en"},
+    )
+    assert resp.status_code == 201, resp.text
 
-    monkeypatch.setattr("app.api.cv.FirecrawlService", _EmptyFirecrawl)
+    # 4 URLs derived in stable order.
+    assert captured["urls"] == [
+        "https://alisadikinma.com/en",
+        "https://alisadikinma.com/en/about",
+        "https://alisadikinma.com/en/work?tab=awards",
+        "https://alisadikinma.com/en/work?tab=projects",
+    ]
+
+
+def test_import_url_explicit_urls_array_passed_through(api, monkeypatch):
+    """Caller-provided `urls` skips derivation and forwards as-is."""
+    client, _ = api
+
+    captured = {}
+
+    def _fake_multi(urls, db, **kwargs):
+        captured["urls"] = list(urls)
+        return "stuff"
+
+    monkeypatch.setattr("app.api.cv.scrape_multiple_pages", _fake_multi)
+    monkeypatch.setattr(
+        "app.api.cv.parse_cv_to_json_resume",
+        lambda raw: _canned_cv(),
+    )
+
+    resp = client.post(
+        "/api/cv/master/import-url",
+        json={
+            "url": "https://example.com/profile",  # ignored when `urls` present
+            "urls": [
+                "https://example.com/page1",
+                "https://example.com/page2",
+            ],
+        },
+    )
+    assert resp.status_code == 201, resp.text
+    assert captured["urls"] == [
+        "https://example.com/page1",
+        "https://example.com/page2",
+    ]
+
+
+def test_import_url_firecrawl_empty_returns_502(api, monkeypatch):
+    client, _ = api
+    from app.services.multi_scraper import MultiScrapeError
+
+    def _boom(urls, db, **kw):
+        raise MultiScrapeError("all 4 URLs returned empty")
+
+    monkeypatch.setattr("app.api.cv.scrape_multiple_pages", _boom)
 
     resp = client.post(
         "/api/cv/master/import-url",

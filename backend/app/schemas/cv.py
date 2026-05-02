@@ -126,6 +126,12 @@ class MasterCVUpdateRequest(BaseModel):
 
 class MasterCVImportURLRequest(BaseModel):
     url: str = Field(min_length=1)
+    # Optional explicit URL list. If provided and non-empty, the endpoint
+    # uses these URLs directly instead of deriving from `url`. Lets users
+    # paste a custom list (advanced mode) for non-standard portfolio
+    # layouts. `url` stays required for source-type labelling and as the
+    # default when `urls` is omitted.
+    urls: list[str] | None = None
 
 
 # --- generated CV (Phase 10) ---------------------------------------

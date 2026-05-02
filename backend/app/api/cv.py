@@ -37,7 +37,11 @@ from app.services.cv_parser import (
     parse_cv_to_json_resume,
 )
 from app.services.docx_service import ConversionError, docx_to_pdf, markdown_to_docx
-from app.services.firecrawl_service import FirecrawlService
+from app.services.multi_scraper import (
+    MultiScrapeError,
+    derive_portfolio_urls,
+    scrape_multiple_pages,
+)
 from app.services.scorer_service import score_cv
 
 router = APIRouter(prefix="/api/cv", tags=["cv"])
@@ -192,16 +196,32 @@ def import_master_from_url(
     db: Session = Depends(get_db),
     _current: User = Depends(get_current_user),
 ):
-    """Scrape a portfolio URL via Firecrawl, parse to JSON Resume, save as new active version."""
+    """Scrape portfolio pages via Firecrawl, parse to JSON Resume, save as new active version.
+
+    Accepts either:
+      - `url` only -> auto-derives 4 URLs (base, /about, /work?tab=awards,
+        /work?tab=projects) and scrapes them in parallel.
+      - `urls` (explicit list) -> uses the list as-is. `url` still
+        required for source-type labelling.
+    """
     parsed_url = urlparse(body.url)
     if parsed_url.scheme not in {"http", "https"} or not parsed_url.netloc:
         raise HTTPException(status_code=422, detail="URL must be an absolute http(s) URL")
 
+    target_urls = body.urls if body.urls else derive_portfolio_urls(body.url)
+
     try:
-        with FirecrawlService(db=db) as fc:
-            # waitFor lets JS-rendered SPAs (Next/Nuxt/React) finish hydrating
-            # before Firecrawl reads the DOM. 5s is enough for most sites.
-            result = fc.scrape(body.url, opts={"waitFor": 5000})
+        markdown = scrape_multiple_pages(target_urls, db, wait_for_ms=8000)
+    except MultiScrapeError as e:
+        raise HTTPException(
+            status_code=502,
+            detail=(
+                f"Firecrawl returned no content for {body.url}: {e}. "
+                "Tip: try uploading your CV as PDF/DOCX directly instead — "
+                "the 'Upload file' button parses local files without "
+                "depending on Firecrawl SaaS."
+            ),
+        ) from e
     except Exception as e:  # network/pool failure — surface as 502
         raise HTTPException(
             status_code=502,
@@ -211,19 +231,6 @@ def import_master_from_url(
                 "CV directly without needing Firecrawl."
             ),
         ) from e
-
-    markdown = (result or {}).get("markdown") or ""
-    if not markdown.strip():
-        err = (result or {}).get("error") or "empty response"
-        raise HTTPException(
-            status_code=502,
-            detail=(
-                f"Firecrawl returned no content for {body.url}: {err}. "
-                "Tip: try uploading your CV as PDF/DOCX directly instead — "
-                "the 'Upload file' button parses local files without "
-                "depending on Firecrawl SaaS."
-            ),
-        )
 
     try:
         parsed = parse_cv_to_json_resume(markdown)

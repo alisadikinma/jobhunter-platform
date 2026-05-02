@@ -72,6 +72,13 @@ services:
     environment:
       - ENV=prod
       - HOME=/home/claudesn
+      # Claude CLI auth: this env var (set on the VPS host's
+      # claudesn shell via .bashrc/.profile) is the actual auth source —
+      # the CLI prefers it over the .credentials.json file on disk.
+      # Without it, the in-container CLI gets API 401 even with the
+      # credentials file mounted. Keep the value out of git: source it
+      # from the host shell environment that runs `docker compose up`.
+      - CLAUDE_CODE_OAUTH_TOKEN=${CLAUDE_CODE_OAUTH_TOKEN:?set CLAUDE_CODE_OAUTH_TOKEN — export it on the VPS host before docker compose up}
       - DATABASE_URL=postgresql://jobhunter:${POSTGRES_PASSWORD}@db:5432/jobhunter
       - JWT_SECRET=${JWT_SECRET:?set JWT_SECRET (>=32 bytes)}
       - ADMIN_EMAIL=${ADMIN_EMAIL}
@@ -94,15 +101,6 @@ services:
     # Override JOBHUNTER_PLUGIN_REF build arg to pin a tag/branch.
     volumes:
       - cv_storage:/app/storage/cvs
-      # Share the host claudesn user's Claude CLI OAuth login so the
-      # container's `claude` invocations authenticate without an API
-      # key. Same convention as the Portfolio_v2 stack on this VPS.
-      # `claude login` must have been run once on the host as claudesn.
-      # Both files are needed: `.claude/` holds OAuth credentials,
-      # `.claude.json` holds the CLI's primary config (the CLI rewrites
-      # this on every invocation and refuses to start without it).
-      - /home/claudesn/.claude:/home/claudesn/.claude:rw
-      - /home/claudesn/.claude.json:/home/claudesn/.claude.json:rw
     depends_on:
       db:
         condition: service_healthy

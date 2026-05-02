@@ -48,14 +48,15 @@ COPY ./templates ./templates
 RUN pandoc --print-default-data-file=reference.docx > /app/templates/cv-template.docx \
  && test -s /app/templates/cv-template.docx
 
-RUN mkdir -p /tmp/jobhunter_agent_jobs /app/storage/cvs
+RUN mkdir -p /tmp/jobhunter_agent_jobs /app/storage/cvs /home/claudesn
 
-# Pre-chown writable dirs to UID 1003 — matches the VPS host user
-# (claudesn) so the container can share `~/.claude` OAuth credentials
-# via bind mount, AND `--dangerously-skip-permissions` works for skills
-# (CLI hard-rejects that flag when running as root). Fresh named volumes
-# mounted on /app/storage/cvs at runtime inherit these perms.
-RUN chown -R 1003:1003 /tmp/jobhunter_agent_jobs /app/storage
+# Pre-chown writable dirs to UID 1003 — the api container runs as that
+# UID at runtime (matching the VPS host user `claudesn`) so that
+# `--dangerously-skip-permissions` works for skill spawns (CLI hard-
+# rejects that flag when running as root). HOME=/home/claudesn must be
+# writable so the CLI can create its state/cache files. Fresh named
+# volumes mounted on /app/storage/cvs at runtime inherit these perms.
+RUN chown -R 1003:1003 /tmp/jobhunter_agent_jobs /app/storage /home/claudesn
 
 ENV CLAUDE_PLUGIN_PATH=/app/claude-plugin
 ENV CV_STORAGE_DIR=/app/storage/cvs

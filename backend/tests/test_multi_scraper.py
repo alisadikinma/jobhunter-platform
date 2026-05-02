@@ -99,6 +99,40 @@ def test_scrape_multiple_pages_all_fail_raises():
         )
 
 
+def test_derive_portfolio_urls_returns_4_urls_in_order():
+    """alisadikinma.com/en -> [base, /about, /work?tab=awards, /work?tab=projects]."""
+    from app.services.multi_scraper import derive_portfolio_urls
+
+    out = derive_portfolio_urls("https://alisadikinma.com/en")
+    assert out == [
+        "https://alisadikinma.com/en",
+        "https://alisadikinma.com/en/about",
+        "https://alisadikinma.com/en/work?tab=awards",
+        "https://alisadikinma.com/en/work?tab=projects",
+    ]
+
+
+def test_derive_portfolio_urls_strips_trailing_slash():
+    from app.services.multi_scraper import derive_portfolio_urls
+
+    out = derive_portfolio_urls("https://alisadikinma.com/en/")
+    assert out[0] == "https://alisadikinma.com/en"
+    assert out[1] == "https://alisadikinma.com/en/about"
+
+
+def test_derive_portfolio_urls_bare_domain():
+    """Domain with no path still produces 4 URLs."""
+    from app.services.multi_scraper import derive_portfolio_urls
+
+    out = derive_portfolio_urls("https://example.com")
+    assert out == [
+        "https://example.com",
+        "https://example.com/about",
+        "https://example.com/work?tab=awards",
+        "https://example.com/work?tab=projects",
+    ]
+
+
 def test_scrape_multiple_pages_runs_in_parallel():
     """Wall time must be <2x of one scrape's latency (proves ThreadPoolExecutor not sequential)."""
     from app.services import multi_scraper

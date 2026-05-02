@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import logging
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from urllib.parse import urlparse
 
 from sqlalchemy.orm import Session
 
@@ -96,3 +97,36 @@ def scrape_multiple_pages(
         if url in by_url:
             parts.append(f"\n\n=== Page: {url} ===\n\n{by_url[url]}")
     return "".join(parts).strip()
+
+
+def derive_portfolio_urls(base_url: str) -> list[str]:
+    """Auto-derive 4 portfolio sub-pages from a base URL.
+
+    Matches the alisadikinma.com/en convention: home + about + work tabs.
+    Output order: [base, /about, /work?tab=awards, /work?tab=projects].
+    Trailing slash on the input path is stripped so derived URLs don't
+    end up with double slashes.
+    """
+    parsed = urlparse(base_url)
+    if not parsed.scheme or not parsed.netloc:
+        # Caller validates scheme upstream; defensive fallback returns
+        # the input unchanged so the helper never raises.
+        return [base_url]
+
+    path = (parsed.path or "").rstrip("/")
+    base_no_trail = f"{parsed.scheme}://{parsed.netloc}{path}"
+
+    candidates = [
+        base_no_trail,
+        f"{base_no_trail}/about",
+        f"{base_no_trail}/work?tab=awards",
+        f"{base_no_trail}/work?tab=projects",
+    ]
+
+    seen: set[str] = set()
+    out: list[str] = []
+    for u in candidates:
+        if u not in seen:
+            seen.add(u)
+            out.append(u)
+    return out

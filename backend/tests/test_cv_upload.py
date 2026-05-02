@@ -226,3 +226,40 @@ def test_parse_handles_fenced_json(monkeypatch):
     out = cv_parser.parse_cv_to_json_resume("Resume body")
     assert out["basics"]["name"] == "X"
     assert out["basics"]["summary_variants"]["ai_video"] == "c"
+
+
+def test_parse_cv_uses_sonnet_with_ats_prompt(monkeypatch, tmp_path):
+    """CV parser must invoke Sonnet 4.6 and write an ATS-aware system prompt."""
+    from pathlib import Path
+
+    from app.services import cv_parser, llm_extractor
+
+    captured: dict = {}
+
+    class _FakeRun:
+        returncode = 0
+        stdout = '{"basics":{"name":"X","email":"x@x.com","summary_variants":{"vibe_coding":"","ai_automation":"","ai_video":""}}}'
+        stderr = ""
+
+    def _fake_run(cmd, *a, **kw):
+        captured["cmd"] = cmd
+        # The system prompt is written to a temp file passed via flag.
+        flag_idx = cmd.index("--append-system-prompt-file")
+        prompt_path = cmd[flag_idx + 1]
+        captured["system_prompt"] = Path(prompt_path).read_text(encoding="utf-8")
+        return _FakeRun()
+
+    monkeypatch.setattr(llm_extractor.subprocess, "run", _fake_run)
+    monkeypatch.setattr(llm_extractor, "_resolve_claude_binary", lambda: "claude")
+
+    cv_parser.parse_cv_to_json_resume("some resume markdown")
+
+    cmd = captured["cmd"]
+    # Sonnet 4.6 must be the model passed.
+    assert "--model" in cmd
+    assert cmd[cmd.index("--model") + 1] == "claude-sonnet-4-6"
+
+    sp = captured["system_prompt"]
+    # ATS-specific rules surfaced in the prompt.
+    assert "EXCLUDE: model/product names" in sp
+    assert "Capture EVERY distinct work entry" in sp

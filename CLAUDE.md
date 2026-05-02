@@ -334,6 +334,16 @@ before you go deeper.
   `claude`, `claude.cmd`, `claude.ps1`. Bare `subprocess.Popen(['claude'])`
   fails with `WinError 2`. Resolved via `shutil.which()` in
   `claude_service._resolve_claude_binary()` — don't bypass it.
+- **CV import-from-URL scrapes 4 portfolio pages in parallel.** A
+  single-page scrape of typical SPAs (alisadikinma.com/en) misses 75%
+  of the content because tabs are JS-rendered query-param toggles.
+  `app/services/multi_scraper.py` provides `derive_portfolio_urls`
+  (heuristic: base, /about, /work?tab=awards, /work?tab=projects) and
+  `scrape_multiple_pages` (parallel via ThreadPoolExecutor with the
+  Firecrawl pool). The endpoint accepts an optional `urls: list[str]`
+  field for advanced mode (custom URL list). Extraction switched from
+  haiku-4-5 to sonnet-4-6 with an ATS-aware system prompt that filters
+  skills (rejects model names, vendor brands, abstract concepts).
 - **Container CLI auth is via `CLAUDE_CODE_OAUTH_TOKEN` env var, NOT
   the credentials file.** The CLI prefers the env var over
   `~/.claude/.credentials.json`, and bind-mounting the credentials file

@@ -5,7 +5,7 @@ is a 422 from the backend (and a red highlight in the frontend form).
 """
 from typing import Literal
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, field_validator
 
 Variant = Literal["vibe_coding", "ai_automation", "ai_video"]
 
@@ -36,8 +36,21 @@ class SummaryVariants(BaseModel):
 class Basics(BaseModel):
     name: str = Field(min_length=1)
     label: str | None = None
-    email: EmailStr
+    # Allow empty/missing — auto-extracted CVs (URL imports especially)
+    # often don't surface a contact email; user can fill it in later via
+    # the advanced JSON editor. Strict EmailStr broke uploads when the
+    # LLM returned an empty string.
+    email: EmailStr | None = None
     phone: str | None = None
+
+    @field_validator("email", mode="before")
+    @classmethod
+    def _empty_email_to_none(cls, v):
+        # LLMs often return "" instead of null for missing contact email.
+        # Coerce so EmailStr validation only runs on real values.
+        if isinstance(v, str) and not v.strip():
+            return None
+        return v
     url: str | None = None
     summary: str | None = None
     location: LocationModel | None = None

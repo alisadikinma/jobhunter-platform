@@ -92,3 +92,5 @@ frontend/next-env.d.ts
 *.tar
 *.zip
 *.mcp.json
+# Claude Code per-developer state (worktrees, scheduled tasks lock).
+.claude/

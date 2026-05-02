@@ -133,6 +133,42 @@ def test_derive_portfolio_urls_bare_domain():
     ]
 
 
+def test_scrape_multiple_pages_uses_per_worker_session(monkeypatch):
+    """Each worker must open its own SessionLocal to avoid the cross-thread
+    'Session is already flushing' race that broke production scrapes.
+    Verified by counting `SessionLocal()` calls during the run.
+    """
+    from app.services import multi_scraper
+    from app.services.multi_scraper import scrape_multiple_pages
+
+    session_calls = {"count": 0}
+
+    class _SessionStub:
+        def __enter__(self): return self
+        def __exit__(self, *a): return None
+
+    def _fake_session_local():
+        session_calls["count"] += 1
+        return _SessionStub()
+
+    monkeypatch.setattr(multi_scraper, "SessionLocal", _fake_session_local)
+
+    class _FirecrawlStub:
+        def __init__(self, db=None): pass
+        def __enter__(self): return self
+        def __exit__(self, *a): return None
+        def scrape(self, url, opts=None):
+            return {"markdown": f"page {url}", "error": None}
+
+    monkeypatch.setattr(multi_scraper, "FirecrawlService", _FirecrawlStub)
+
+    urls = [f"https://example.com/{i}" for i in range(4)]
+    scrape_multiple_pages(urls, db=MagicMock())
+
+    # One SessionLocal() call per worker.
+    assert session_calls["count"] == 4
+
+
 def test_scrape_multiple_pages_runs_in_parallel():
     """Wall time must be <2x of one scrape's latency (proves ThreadPoolExecutor not sequential)."""
     from app.services import multi_scraper

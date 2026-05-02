@@ -14,6 +14,7 @@ from urllib.parse import urlparse
 
 from sqlalchemy.orm import Session
 
+from app.database import SessionLocal
 from app.services.firecrawl_service import FirecrawlService
 
 log = logging.getLogger(__name__)
@@ -23,18 +24,20 @@ class MultiScrapeError(RuntimeError):
     """Raised when every URL in a multi-scrape batch returned empty/error."""
 
 
-def _scrape_one(
-    url: str, db: Session, *, wait_for_ms: int
-) -> tuple[str, str | None]:
+def _scrape_one(url: str, *, wait_for_ms: int) -> tuple[str, str | None]:
     """Run a single scrape inside the worker thread. Returns (url, markdown_or_None).
 
     `markdown_or_None` is None on failure/empty so the caller can filter.
-    Each thread opens its own FirecrawlService context — the pool's
-    `acquire_account` is row-locked, so concurrent acquires don't collide.
+    Each worker opens its OWN SessionLocal — SQLAlchemy sessions are not
+    thread-safe, so passing a shared session to N workers triggers
+    "Session is already flushing" errors. The Firecrawl pool's
+    `acquire_account` uses FOR UPDATE SKIP LOCKED at the row level,
+    which is the right concurrency primitive across separate sessions.
     """
     try:
-        with FirecrawlService(db=db) as fc:
-            result = fc.scrape(url, opts={"waitFor": wait_for_ms})
+        with SessionLocal() as worker_db:
+            with FirecrawlService(db=worker_db) as fc:
+                result = fc.scrape(url, opts={"waitFor": wait_for_ms})
     except Exception as e:  # network/pool failure — log and skip
         log.warning("multi-scrape: %s raised: %s", url, e)
         return url, None
@@ -71,9 +74,15 @@ def scrape_multiple_pages(
     # url -> markdown, populated as futures complete
     by_url: dict[str, str] = {}
 
+    # `db` is intentionally NOT forwarded to workers — each worker opens
+    # its own SessionLocal to avoid cross-thread session sharing
+    # ("Session is already flushing" race when multiple threads share one
+    # SQLAlchemy session). Parameter kept for API stability.
+    _ = db  # mark intentionally unused
+
     with ThreadPoolExecutor(max_workers=max_workers) as pool:
         futures = {
-            pool.submit(_scrape_one, url, db, wait_for_ms=wait_for_ms): url
+            pool.submit(_scrape_one, url, wait_for_ms=wait_for_ms): url
             for url in urls
         }
         for fut in as_completed(futures):

@@ -80,14 +80,21 @@ export function useUploadMasterCV() {
   });
 }
 
+export type ImportURLPayload = {
+  url: string;
+  // Optional explicit URL list. Backend uses this if provided and
+  // non-empty, else derives 4 portfolio sub-pages from `url`.
+  urls?: string[];
+};
+
 export function useImportMasterCVFromURL() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (url: string) => {
+    mutationFn: async (payload: ImportURLPayload) => {
       const { data } = await api.post<MasterCVResult>(
         "/api/cv/master/import-url",
-        { url },
-        { timeout: 120_000 },
+        payload,
+        { timeout: 180_000 },
       );
       return data;
     },

@@ -71,6 +71,8 @@ export function MasterCvTab() {
   const [error, setError] = useState<string | null>(null);
   const [showJson, setShowJson] = useState<boolean>(false);
   const [url, setUrl] = useState<string>("");
+  const [advancedMode, setAdvancedMode] = useState<boolean>(false);
+  const [urlList, setUrlList] = useState<string>("");
   const [dragActive, setDragActive] = useState<boolean>(false);
   const [showSuccess, setShowSuccess] = useState<string | null>(null);
 
@@ -94,7 +96,7 @@ export function MasterCvTab() {
   const busyMessage = upload.isPending
     ? "Extracting text and parsing CV (~5–10s)…"
     : importUrl.isPending
-    ? "Scraping URL and parsing CV (~5–10s)…"
+    ? "Scraping pages in parallel and parsing CV (~20-40s)…"
     : null;
 
   function reformat() {
@@ -148,12 +150,39 @@ export function MasterCvTab() {
   async function onImportUrl() {
     setError(null);
     setShowSuccess(null);
+
+    if (advancedMode) {
+      const urls = urlList
+        .split("\n")
+        .map((u) => u.trim())
+        .filter(Boolean);
+      if (urls.length === 0) {
+        setError("Paste at least one URL (one per line)");
+        return;
+      }
+      try {
+        // First URL acts as `url` (used by backend for source-type
+        // labelling); the full list is what actually gets scraped.
+        const result = await importUrl.mutateAsync({ url: urls[0], urls });
+        setShowSuccess(
+          `Imported ${urls.length} pages → version ${result.version}`,
+        );
+        setUrlList("");
+        requestAnimationFrame(() =>
+          previewRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }),
+        );
+      } catch (e) {
+        setError(extractApiError(e));
+      }
+      return;
+    }
+
     if (!url.trim()) {
       setError("Enter a URL first");
       return;
     }
     try {
-      const result = await importUrl.mutateAsync(url.trim());
+      const result = await importUrl.mutateAsync({ url: url.trim() });
       setShowSuccess(`Imported ${url.trim()} → version ${result.version}`);
       setUrl("");
       requestAnimationFrame(() =>
@@ -261,13 +290,28 @@ export function MasterCvTab() {
             Import from URL
           </h3>
           <p className="text-xs text-neutral-500">
-            Paste a portfolio or about-me URL. We scrape it via Firecrawl and
-            structure it with Claude.
+            {advancedMode
+              ? "Paste one URL per line (4-5 pages recommended for full CV coverage)."
+              : "Paste a portfolio URL. We auto-fetch /about + work tabs and structure with Claude Sonnet 4.6."}
           </p>
-          <div className="flex gap-2">
+          {advancedMode ? (
+            <textarea
+              className="input min-h-[100px] resize-y font-mono text-xs leading-relaxed"
+              placeholder={
+                "https://alisadikinma.com/en\n" +
+                "https://alisadikinma.com/en/about\n" +
+                "https://alisadikinma.com/en/work?tab=awards\n" +
+                "https://alisadikinma.com/en/work?tab=projects"
+              }
+              value={urlList}
+              onChange={(e) => setUrlList(e.target.value)}
+              disabled={isBusy}
+              spellCheck={false}
+            />
+          ) : (
             <input
               type="url"
-              className="input flex-1"
+              className="input w-full"
               placeholder="https://alisadikinma.com/en"
               value={url}
               onChange={(e) => setUrl(e.target.value)}
@@ -276,10 +320,27 @@ export function MasterCvTab() {
                 if (e.key === "Enter" && !isBusy) void onImportUrl();
               }}
             />
+          )}
+          <div className="flex items-center justify-between gap-2">
+            <label className="flex cursor-pointer items-center gap-1.5 text-[11px] text-neutral-400 hover:text-neutral-200">
+              <input
+                type="checkbox"
+                role="switch"
+                aria-label="Advanced — paste custom URLs"
+                checked={advancedMode}
+                onChange={(e) => setAdvancedMode(e.target.checked)}
+                disabled={isBusy}
+                className="h-3 w-3 accent-brand-blue"
+              />
+              Advanced — paste custom URL list
+            </label>
             <button
               type="button"
               onClick={onImportUrl}
-              disabled={isBusy || !url.trim()}
+              disabled={
+                isBusy ||
+                (advancedMode ? !urlList.trim() : !url.trim())
+              }
               className="btn-primary whitespace-nowrap"
             >
               {importUrl.isPending ? (

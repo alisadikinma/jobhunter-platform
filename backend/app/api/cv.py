@@ -211,7 +211,10 @@ def import_master_from_url(
     target_urls = body.urls if body.urls else derive_portfolio_urls(body.url)
 
     try:
-        markdown = scrape_multiple_pages(target_urls, db, wait_for_ms=8000)
+        # 12s waitFor — typewriter animations and lazy-loaded sections on
+        # SPA portfolios (e.g. alisadikinma.com hero) need >8s to settle.
+        # Empirically 8s caused name truncation ("Ali Sadikin Ma").
+        markdown = scrape_multiple_pages(target_urls, db, wait_for_ms=12000)
     except MultiScrapeError as e:
         raise HTTPException(
             status_code=502,

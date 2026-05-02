@@ -56,7 +56,7 @@ def scrape_multiple_pages(
     urls: list[str],
     db: Session,
     *,
-    wait_for_ms: int = 8000,
+    wait_for_ms: int = 12000,
     max_workers: int = 4,
 ) -> str:
     """Scrape `urls` in parallel, return concatenated markdown.

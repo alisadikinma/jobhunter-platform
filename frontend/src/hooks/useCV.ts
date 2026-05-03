@@ -94,7 +94,10 @@ export function useImportMasterCVFromURL() {
       const { data } = await api.post<MasterCVResult>(
         "/api/cv/master/import-url",
         payload,
-        { timeout: 180_000 },
+        // 300s — sporadic Firecrawl DNS retries (3×30s per URL) +
+        // Sonnet 4.6 extraction on multi-page markdown can push past
+        // the previous 180s ceiling on bad days.
+        { timeout: 300_000 },
       );
       return data;
     },

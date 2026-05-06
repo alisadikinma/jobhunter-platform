@@ -47,8 +47,10 @@ class MasterCV(Base):
     skills = Column(ARRAY(Text))
     is_active = Column(Boolean, server_default="true")
 
-    # Phase 2 prep columns (used when Portfolio_v2 integration added)
-    source_type = Column(String(20), server_default="manual")
+    # Phase 2 prep columns (used when Portfolio_v2 integration added).
+    # Width 64 fits 'portfolio-api-json:<fqdn>' (35ch for alisadikinma.com)
+    # plus headroom — see migration 014_widen_master_cv_source_type.
+    source_type = Column(String(64), server_default="manual")
     source_hash = Column(String(64))
     synced_at = Column(DateTime(timezone=True))
     source_version = Column(String(50))

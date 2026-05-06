@@ -245,6 +245,123 @@ def test_upload_requires_auth():
     assert resp.status_code == 401
 
 
+def test_import_url_json_fast_path_skips_llm(api, monkeypatch):
+    """alisadikinma.com + token set + no `urls` -> JSON path (no LLM)."""
+    client, SessionLocal = api
+
+    # Token must be set for host_supports_api() to return True.
+    monkeypatch.setattr("app.services.portfolio_cv_api.settings.PORTFOLIO_CV_TOKEN", "cv-test-token")
+
+    # Mock the JSON fetch — return a valid MasterCVContent-shaped dict.
+    fast_path_called = {"yes": False}
+
+    def _fake_export():
+        fast_path_called["yes"] = True
+        return {
+            "schema_version": "2.0.0",
+            "generated_at": "2026-05-06T00:00:00Z",
+            **_canned_cv(),
+        }
+
+    monkeypatch.setattr("app.api.cv.fetch_master_export", _fake_export)
+
+    # Tripwires: if the slow paths get called, fail the test loud.
+    def _slow_path_should_not_run(*a, **kw):
+        raise AssertionError(
+            "JSON fast-path failed — fell through to scraper/LLM. "
+            "Check host_supports_api / fetch_master_export wiring."
+        )
+
+    monkeypatch.setattr("app.api.cv.fetch_master_markdown", _slow_path_should_not_run)
+    monkeypatch.setattr("app.api.cv.scrape_multiple_pages", _slow_path_should_not_run)
+    monkeypatch.setattr("app.api.cv.parse_cv_to_json_resume", _slow_path_should_not_run)
+
+    resp = client.post(
+        "/api/cv/master/import-url",
+        json={"url": "https://alisadikinma.com/en"},
+    )
+    assert resp.status_code == 201, resp.text
+    assert fast_path_called["yes"] is True
+
+    body = resp.json()
+    assert body["source_type"] == "portfolio-api-json:alisadikinma.com"
+
+    with SessionLocal() as s:
+        row = s.query(MasterCV).one()
+        assert row.source_type == "portfolio-api-json:alisadikinma.com"
+        # JSON path skips raw_markdown — it's the JSON itself, not markdown.
+        assert row.raw_markdown is None
+
+
+def test_import_url_json_path_falls_back_to_markdown_on_api_error(api, monkeypatch):
+    """If /export fails (network, 1.x schema, etc.) the import still
+    succeeds via the markdown→LLM path. Operator never sees a 502 just
+    because the fast-path is temporarily unavailable."""
+    client, SessionLocal = api
+
+    monkeypatch.setattr("app.services.portfolio_cv_api.settings.PORTFOLIO_CV_TOKEN", "cv-test-token")
+
+    from app.services.portfolio_cv_api import PortfolioCVApiError
+
+    def _fail_export():
+        raise PortfolioCVApiError("schema_version '1.0.0' is unsupported")
+
+    monkeypatch.setattr("app.api.cv.fetch_master_export", _fail_export)
+    monkeypatch.setattr(
+        "app.api.cv.fetch_master_markdown",
+        lambda: "# Ali Sadikin\nFallback markdown body",
+    )
+    monkeypatch.setattr(
+        "app.api.cv.parse_cv_to_json_resume",
+        lambda raw: _canned_cv(),
+    )
+
+    resp = client.post(
+        "/api/cv/master/import-url",
+        json={"url": "https://alisadikinma.com/en"},
+    )
+    assert resp.status_code == 201, resp.text
+    body = resp.json()
+    # Markdown path label, not the JSON one.
+    assert body["source_type"] == "portfolio-api-md:alisadikinma.com"
+
+    with SessionLocal() as s:
+        row = s.query(MasterCV).one()
+        assert row.raw_markdown == "# Ali Sadikin\nFallback markdown body"
+
+
+def test_import_url_json_path_502_when_schema_invalid(api, monkeypatch):
+    """When the API returns 2.x but the payload doesn't actually match
+    MasterCVContent (e.g. missing summary_variants), surface as 502 with
+    a specific schema-mismatch hint — DO NOT silently fall back, because
+    that would mask a real upstream bug."""
+    client, _ = api
+
+    monkeypatch.setattr("app.services.portfolio_cv_api.settings.PORTFOLIO_CV_TOKEN", "cv-test-token")
+
+    def _bad_export():
+        # Schema version is 2.x so we DON'T fall through to markdown — but
+        # the body is missing required summary_variants under basics.
+        return {
+            "schema_version": "2.0.0",
+            "basics": {"name": "X"},
+            "work": [],
+            "projects": [],
+            "education": [],
+            "skills": {},
+        }
+
+    monkeypatch.setattr("app.api.cv.fetch_master_export", _bad_export)
+
+    resp = client.post(
+        "/api/cv/master/import-url",
+        json={"url": "https://alisadikinma.com/en"},
+    )
+    assert resp.status_code == 502
+    detail = resp.json().get("detail", "")
+    assert "schema" in detail.lower() or "validate" in detail.lower()
+
+
 def test_parse_handles_fenced_json(monkeypatch):
     """parse_cv_to_json_resume must strip ```json … ``` fences if the CLI wraps output."""
     from app.services import cv_parser, llm_extractor

@@ -46,6 +46,15 @@ class Settings(BaseSettings):
     FIRECRAWL_API_KEY: str = ""  # optional; self-hosted typically needs none
     FIRECRAWL_TIMEOUT_S: int = 60
 
+    # Portfolio CV API (alisadikinma.com/api/cv) — first-party, authenticated
+    # markdown export. When set, imports from alisadikinma.com bypass
+    # Firecrawl scraping and call the API directly. Mint at
+    # https://alisadikinma.com/admin/automation/tokens (category=cv,
+    # ability=cv:read). Token prefix is "cv-".
+    PORTFOLIO_CV_TOKEN: str = ""
+    PORTFOLIO_CV_API_URL: str = "https://alisadikinma.com/api/cv/master.md"
+    PORTFOLIO_CV_TIMEOUT_S: int = 30
+
     # Comma-separated list of directories scanned by the portfolio auditor.
     # Each subdir with a CLAUDE.md becomes a draft asset. Override via
     # env per-host (Linux VPS has no D:/ drive).

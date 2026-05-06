@@ -3,6 +3,7 @@
 Phase 8: master CV CRUD (this file).
 Phase 10: generated CV / tailor endpoints extend this router.
 """
+import logging
 from pathlib import Path
 from urllib.parse import urlparse
 
@@ -13,6 +14,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.config import settings
+
+log = logging.getLogger(__name__)
 from app.core.deps import get_current_user
 from app.database import get_db
 from app.models.application import Application
@@ -41,6 +44,12 @@ from app.services.multi_scraper import (
     MultiScrapeError,
     derive_portfolio_urls,
     scrape_multiple_pages,
+)
+from app.services.portfolio_cv_api import (
+    PortfolioCVApiError,
+    fetch_master_export,
+    fetch_master_markdown,
+    host_supports_api,
 )
 from app.services.scorer_service import score_cv
 
@@ -196,53 +205,116 @@ def import_master_from_url(
     db: Session = Depends(get_db),
     _current: User = Depends(get_current_user),
 ):
-    """Scrape portfolio pages via Firecrawl, parse to JSON Resume, save as new active version.
+    """Import a master CV from a URL, parse to JSON Resume, save as new active version.
 
-    Accepts either:
-      - `url` only -> auto-derives 4 URLs (base, /about, /work?tab=awards,
-        /work?tab=projects) and scrapes them in parallel.
-      - `urls` (explicit list) -> uses the list as-is. `url` still
-        required for source-type labelling.
+    Path priority (fast → slow):
+
+    1. **JSON fast-path** — host on a Portfolio CV API endpoint
+       (alisadikinma.com) AND PORTFOLIO_CV_TOKEN set AND no `urls`
+       override AND remote schema_version is 2.x.
+       Fetch `/api/cv/export`, validate directly via
+       `MasterCVContent.model_validate(...)`. ~1s, deterministic, no LLM.
+
+    2. **Markdown + LLM** — host on a Portfolio CV API endpoint AND token
+       set AND no `urls` override, but JSON path failed (1.x schema,
+       network blip mid-fetch, etc.). Fetches `/api/cv/master.md` and
+       runs the Claude CLI parser. ~5–10s, idempotent against same input.
+
+    3. **Firecrawl scrape + LLM** — anything else (other hosts, or
+       advanced-mode `urls` list, or no token configured). Auto-derives
+       4 portfolio URLs (base, /about, /work?tab=awards,
+       /work?tab=projects) when `urls` not supplied; uses the list
+       verbatim when supplied. ~20–40s.
     """
     parsed_url = urlparse(body.url)
     if parsed_url.scheme not in {"http", "https"} or not parsed_url.netloc:
         raise HTTPException(status_code=422, detail="URL must be an absolute http(s) URL")
 
-    target_urls = body.urls if body.urls else derive_portfolio_urls(body.url)
+    domain = parsed_url.netloc.lower()
+    api_eligible = body.urls is None and host_supports_api(body.url)
 
-    try:
-        # 12s waitFor — typewriter animations and lazy-loaded sections on
-        # SPA portfolios (e.g. alisadikinma.com hero) need >8s to settle.
-        # Empirically 8s caused name truncation ("Ali Sadikin Ma").
-        markdown = scrape_multiple_pages(target_urls, db, wait_for_ms=12000)
-    except MultiScrapeError as e:
-        raise HTTPException(
-            status_code=502,
-            detail=(
-                f"Firecrawl returned no content for {body.url}: {e}. "
-                "Tip: try uploading your CV as PDF/DOCX directly instead — "
-                "the 'Upload file' button parses local files without "
-                "depending on Firecrawl SaaS."
-            ),
-        ) from e
-    except Exception as e:  # network/pool failure — surface as 502
-        raise HTTPException(
-            status_code=502,
-            detail=(
-                f"Firecrawl scrape failed: {e}. "
-                "Tip: try the 'Upload file' option instead — it parses your "
-                "CV directly without needing Firecrawl."
-            ),
-        ) from e
+    # ---- Path 1: JSON fast-path (alisadikinma.com, schema 2.x) -------
+    if api_eligible:
+        try:
+            export = fetch_master_export()
+        except PortfolioCVApiError as e:
+            log.info(
+                "Portfolio CV /export unavailable (%s) — falling back to markdown+LLM",
+                e,
+            )
+            export = None
+
+        if export is not None:
+            try:
+                validated = MasterCVContent.model_validate(export)
+            except ValidationError as e:
+                # Schema mismatch on the JSON path — surface as 502 with a
+                # specific hint so the operator knows to either fix the
+                # remote schema or fall back to markdown manually.
+                raise HTTPException(
+                    status_code=502,
+                    detail=(
+                        f"Portfolio CV /export schema {export.get('schema_version')!r} "
+                        f"does not validate against MasterCVContent: {e.errors()[:3]}"
+                    ),
+                ) from e
+
+            new_row = _save_new_master(
+                db,
+                validated.model_dump(mode="json"),
+                source_type=f"portfolio-api-json:{domain}",
+                raw_markdown=None,  # JSON path skips markdown; raw is the JSON itself
+            )
+            return MasterCVResponse(
+                id=new_row.id,
+                version=new_row.version,
+                is_active=new_row.is_active,
+                content=new_row.content,
+                source_type=new_row.source_type,
+            )
+
+    # ---- Path 2 / 3: markdown -> LLM parser --------------------------
+    if api_eligible:
+        try:
+            markdown = fetch_master_markdown()
+        except PortfolioCVApiError as e:
+            raise HTTPException(status_code=502, detail=str(e)) from e
+        source_type = f"portfolio-api-md:{domain}"
+    else:
+        target_urls = body.urls if body.urls else derive_portfolio_urls(body.url)
+        try:
+            # 12s waitFor — typewriter animations and lazy-loaded sections on
+            # SPA portfolios (e.g. alisadikinma.com hero) need >8s to settle.
+            # Empirically 8s caused name truncation ("Ali Sadikin Ma").
+            markdown = scrape_multiple_pages(target_urls, db, wait_for_ms=12000)
+        except MultiScrapeError as e:
+            raise HTTPException(
+                status_code=502,
+                detail=(
+                    f"Firecrawl returned no content for {body.url}: {e}. "
+                    "Tip: try uploading your CV as PDF/DOCX directly instead — "
+                    "the 'Upload file' button parses local files without "
+                    "depending on Firecrawl SaaS."
+                ),
+            ) from e
+        except Exception as e:  # network/pool failure — surface as 502
+            raise HTTPException(
+                status_code=502,
+                detail=(
+                    f"Firecrawl scrape failed: {e}. "
+                    "Tip: try the 'Upload file' option instead — it parses your "
+                    "CV directly without needing Firecrawl."
+                ),
+            ) from e
+        source_type = f"url:{domain}"
 
     try:
         parsed = parse_cv_to_json_resume(markdown)
     except CVParseError as e:
         raise HTTPException(status_code=502, detail=str(e)) from e
 
-    domain = parsed_url.netloc.lower()
     new_row = _save_new_master(
-        db, parsed, source_type=f"url:{domain}", raw_markdown=markdown
+        db, parsed, source_type=source_type, raw_markdown=markdown
     )
     return MasterCVResponse(
         id=new_row.id,

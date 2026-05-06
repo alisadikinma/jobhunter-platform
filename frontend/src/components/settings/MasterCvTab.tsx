@@ -93,10 +93,15 @@ export function MasterCvTab() {
   }, [draft]);
 
   const isBusy = upload.isPending || importUrl.isPending;
+  const isPortfolioApiUrl =
+    !advancedMode &&
+    /^https?:\/\/(www\.)?alisadikinma\.com(\/|$)/i.test(url.trim());
   const busyMessage = upload.isPending
     ? "Extracting text and parsing CV (~5–10s)…"
     : importUrl.isPending
-    ? "Scraping pages in parallel and parsing CV (~20-40s)…"
+    ? isPortfolioApiUrl
+      ? "Fetching JSON from Portfolio CV API (~1s)…"
+      : "Scraping pages in parallel and parsing CV (~20-40s)…"
     : null;
 
   function reformat() {
@@ -291,7 +296,9 @@ export function MasterCvTab() {
           </h3>
           <p className="text-xs text-neutral-500">
             {advancedMode
-              ? "Paste one URL per line (4-5 pages recommended for full CV coverage)."
+              ? "Paste one URL per line (4-5 pages recommended for full CV coverage). Always uses the Firecrawl scraper."
+              : isPortfolioApiUrl
+              ? "alisadikinma.com — using Portfolio CV API JSON fast-path (~1s, deterministic, no LLM)."
               : "Paste a portfolio URL. We auto-fetch /about + work tabs and structure with Claude Sonnet 4.6."}
           </p>
           {advancedMode ? (

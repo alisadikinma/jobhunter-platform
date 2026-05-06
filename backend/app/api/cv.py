@@ -14,8 +14,6 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.config import settings
-
-log = logging.getLogger(__name__)
 from app.core.deps import get_current_user
 from app.database import get_db
 from app.models.application import Application
@@ -52,6 +50,8 @@ from app.services.portfolio_cv_api import (
     host_supports_api,
 )
 from app.services.scorer_service import score_cv
+
+log = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/cv", tags=["cv"])
 
@@ -218,13 +218,13 @@ def import_master_from_url(
     2. **Markdown + LLM** — host on a Portfolio CV API endpoint AND token
        set AND no `urls` override, but JSON path failed (1.x schema,
        network blip mid-fetch, etc.). Fetches `/api/cv/master.md` and
-       runs the Claude CLI parser. ~5–10s, idempotent against same input.
+       runs the Claude CLI parser. ~5-10s, idempotent against same input.
 
     3. **Firecrawl scrape + LLM** — anything else (other hosts, or
        advanced-mode `urls` list, or no token configured). Auto-derives
        4 portfolio URLs (base, /about, /work?tab=awards,
        /work?tab=projects) when `urls` not supplied; uses the list
-       verbatim when supplied. ~20–40s.
+       verbatim when supplied. ~20-40s.
     """
     parsed_url = urlparse(body.url)
     if parsed_url.scheme not in {"http", "https"} or not parsed_url.netloc:

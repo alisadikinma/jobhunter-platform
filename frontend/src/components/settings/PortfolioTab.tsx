@@ -503,6 +503,9 @@ function ImportUrlModal({ onClose }: { onClose: () => void }) {
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<ImportPortfolioUrlResponse | null>(null);
 
+  const isPortfolioApiUrl =
+    /^https?:\/\/(www\.)?alisadikinma\.com(\/|$)/i.test(url.trim());
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -528,14 +531,22 @@ function ImportUrlModal({ onClose }: { onClose: () => void }) {
   return (
     <ModalShell
       title="Import portfolio from URL"
-      subtitle="Firecrawl scrapes the page → Claude extracts a project list. ~5–10 seconds."
+      subtitle={
+        isPortfolioApiUrl
+          ? "alisadikinma.com — Portfolio CV API JSON fast-path. ~1 second, deterministic."
+          : "Firecrawl scrapes the page → Claude extracts a project list. ~20-40 seconds."
+      }
       onClose={onClose}
       closeable={!importFromUrl.isPending}
     >
       <form onSubmit={submit} className="space-y-4">
         <Field
           label="Portfolio URL"
-          hint="Paste the public URL of any portfolio / case-studies page."
+          hint={
+            isPortfolioApiUrl
+              ? "First-party API path — re-runs are dedup'd by URL, no duplicate drafts."
+              : "Paste the public URL of any portfolio / case-studies page."
+          }
           required
         >
           <input
@@ -555,7 +566,9 @@ function ImportUrlModal({ onClose }: { onClose: () => void }) {
               className="h-4 w-4 animate-spin text-brand-blue"
               strokeWidth={1.75}
             />
-            Scraping with Firecrawl + extracting projects with Claude…
+            {isPortfolioApiUrl
+              ? "Fetching JSON from Portfolio CV API…"
+              : "Scraping with Firecrawl + extracting projects with Claude…"}
           </div>
         )}
 

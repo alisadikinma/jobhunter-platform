@@ -8,7 +8,7 @@ Two surfaces:
                          MasterCVContent, no LLM parse needed (~1s import).
 
 The JSON path is preferred when the API schema_version is 2.0.0+ because
-it skips the entire Claude CLI call (~5–10s) and produces deterministic
+it skips the entire Claude CLI call (~5-10s) and produces deterministic
 output (same response → same content rows, no per-import drift). Caller
 short-circuits to JSON when host matches AND token is set AND no
 explicit `urls` list was supplied.
@@ -120,7 +120,7 @@ def fetch_master_export() -> dict[str, Any]:
     `app.schemas.cv.MasterCVContent` (the import endpoint runs
     `MasterCVContent.model_validate(...)` on the result and persists
     it). No LLM parse, no markdown re-shaping — ~1s round-trip vs
-    ~5–10s for the markdown→Claude path.
+    ~5-10s for the markdown→Claude path.
 
     Raises PortfolioCVApiError on:
       - missing token (caller should check host_supports_api first)
@@ -180,7 +180,89 @@ def fetch_master_export() -> dict[str, Any]:
         raise PortfolioCVApiError(
             f"Portfolio CV API /export schema_version {schema_version!r} is "
             f"unsupported (need {SUPPORTED_SCHEMA_PREFIX}x). "
-            "Falling back to markdown→LLM import path is automatic."
+            "Falling back to markdown->LLM import path is automatic."
         )
 
     return data
+
+
+_VARIANT_WHITELIST = {"vibe_coding", "ai_automation", "ai_video"}
+
+
+def fetch_portfolio_projects() -> list[dict]:
+    """Fetch /api/cv/export and re-shape `projects[]` into the dict format
+    the /api/portfolio/import-url endpoint expects.
+
+    Returned shape per item — drop-in compatible with the existing
+    Firecrawl+LLM extractor output, plus extra fields the consumer's
+    PortfolioAsset model already has columns for (`tags`, `metrics`,
+    `is_featured`):
+
+        {
+          "title": str,
+          "description": str | None,
+          "url": str | None,
+          "tech_stack": list[str],
+          "tags": list[str],
+          "metrics": dict | None,        # API project-level metrics
+          "relevance_hint": list[str],   # filtered to the strict 3 variants
+          "is_featured": bool,           # surfaces awards-style flagship marker
+          "_source": "portfolio-api:<host>",
+        }
+
+    Same auth model + error semantics as fetch_master_export — caller
+    short-circuits to this when host_supports_api(url) is true.
+    """
+    data = fetch_master_export()
+    projects = data.get("projects") or []
+
+    host = urlparse(_api_base()).netloc.lower() or "alisadikinma.com"
+    source_label = f"portfolio-api:{host}"
+
+    items: list[dict] = []
+    for proj in projects:
+        if not isinstance(proj, dict):
+            continue
+        title = (proj.get("name") or "").strip()
+        if not title:
+            continue
+
+        # Prefer strict variant_hint; fall back to legacy relevance_hint
+        # filtered to the 3 valid values. The consumer enforces the
+        # whitelist again at insert time, but pre-filtering keeps the
+        # response payload honest.
+        variant_raw = proj.get("variant_hint") or proj.get("relevance_hint") or []
+        variant = [
+            str(v).strip()
+            for v in variant_raw
+            if isinstance(v, str) and str(v).strip() in _VARIANT_WHITELIST
+        ]
+
+        tech_stack = [
+            str(t).strip()
+            for t in (proj.get("tech_stack") or [])
+            if isinstance(t, str) and str(t).strip()
+        ]
+        tags = [
+            str(t).strip()
+            for t in (proj.get("tags") or [])
+            if isinstance(t, str) and str(t).strip()
+        ]
+
+        # API may return metrics as {} (empty object). Normalize to None
+        # so the consumer doesn't store a noisy empty JSONB row.
+        metrics_raw = proj.get("metrics")
+        metrics = metrics_raw if isinstance(metrics_raw, dict) and metrics_raw else None
+
+        items.append({
+            "title": title,
+            "description": (proj.get("description") or "").strip() or None,
+            "url": proj.get("url") or None,
+            "tech_stack": tech_stack,
+            "tags": tags,
+            "metrics": metrics,
+            "relevance_hint": variant,
+            "is_featured": bool(proj.get("is_featured", False)),
+            "_source": source_label,
+        })
+    return items

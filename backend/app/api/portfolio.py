@@ -1,4 +1,5 @@
 """Portfolio assets CRUD + hybrid audit trigger + URL import."""
+import logging
 from datetime import UTC, datetime
 from typing import Literal
 
@@ -19,10 +20,17 @@ from app.schemas.portfolio import (
     PortfolioAuditRun,
 )
 from app.services.portfolio_auditor import scan
+from app.services.portfolio_cv_api import (
+    PortfolioCVApiError,
+    fetch_portfolio_projects,
+    host_supports_api,
+)
 from app.services.portfolio_extractor import (
     PortfolioExtractError,
     extract_portfolio_from_url,
 )
+
+log = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/portfolio", tags=["portfolio"])
 
@@ -156,16 +164,60 @@ def import_from_url(
     db: Session = Depends(get_db),
     _current: User = Depends(get_current_user),
 ):
-    """Scrape arbitrary portfolio URL → Anthropic extracts projects → bulk-insert as drafts.
+    """Import portfolio entries from a URL → bulk-insert as draft assets.
 
-    Imported items get auto_generated=True, status="draft" so the user
-    reviews them in the same flow as auto-scanned plugin/project entries.
+    Path priority (fast -> slow), parallel to the CV import-url flow:
+
+    1. **JSON fast-path** — host on a Portfolio CV API endpoint
+       (alisadikinma.com) AND PORTFOLIO_CV_TOKEN set. Pulls
+       /api/cv/export, maps `projects[]` directly into asset rows.
+       ~1s, deterministic, NO LLM. Skips items whose URL already
+       exists in `portfolio_assets` (so re-running the import doesn't
+       balloon the drafts queue).
+
+    2. **Firecrawl + LLM** — anywhere else. Scrapes the page,
+       extracts projects via Claude CLI. ~20-40s, idempotent against
+       the same source markdown. No URL dedup (titles can repeat
+       across imports of different sites).
+
+    Imported items get auto_generated=True, status='draft' so the
+    operator reviews them in the same flow as auto-scanned plugin /
+    project entries.
     """
-    try:
-        items = extract_portfolio_from_url(db, body.url)
-    except PortfolioExtractError as e:
-        # 502 because the upstream (Firecrawl/Anthropic) is the failure source.
-        raise HTTPException(status_code=502, detail=str(e)) from e
+    api_eligible = host_supports_api(body.url)
+
+    if api_eligible:
+        try:
+            items = fetch_portfolio_projects()
+            via_api = True
+        except PortfolioCVApiError as e:
+            log.info(
+                "Portfolio CV API import failed (%s) — falling back to "
+                "Firecrawl+LLM extractor",
+                e,
+            )
+            via_api = False
+
+    if not api_eligible or not via_api:
+        try:
+            items = extract_portfolio_from_url(db, body.url)
+            via_api = False
+        except PortfolioExtractError as e:
+            # 502 because the upstream (Firecrawl/Anthropic) is the failure source.
+            raise HTTPException(status_code=502, detail=str(e)) from e
+
+    # URL dedup is only safe on the API path — Firecrawl item URLs are
+    # often null or non-canonical, so we'd silently swallow legitimate
+    # repeat imports there. Build the set lazily to avoid a query when
+    # not needed.
+    existing_urls: set[str] = set()
+    if via_api:
+        existing_urls = {
+            row.url
+            for row in db.query(PortfolioAsset.url)
+            .filter(PortfolioAsset.url.isnot(None))
+            .all()
+        }
 
     created: list[PortfolioAsset] = []
     skipped_reasons: list[str] = []
@@ -182,16 +234,33 @@ def import_from_url(
 
         description = (raw.get("description") or "").strip() or None
         url_field = raw.get("url") or None
+
+        if via_api and url_field and url_field in existing_urls:
+            skipped_reasons.append(f"duplicate URL: {url_field}")
+            continue
+
         tech_stack_raw = raw.get("tech_stack") or []
         relevance_raw = raw.get("relevance_hint") or []
+        tags_raw = raw.get("tags") or []
         source = raw.get("_source")
 
         tech_stack = [str(t).strip() for t in tech_stack_raw if str(t).strip()]
+        tags = [str(t).strip() for t in tags_raw if str(t).strip()]
         relevance_hint = [
             str(v).strip() for v in relevance_raw if str(v).strip() in _VARIANT_VALUES
         ]
 
-        metrics: dict | None = {"source": source} if source else None
+        # API path provides project-level metrics + featured flag; the
+        # Firecrawl path doesn't, so its metrics is just the source label.
+        if via_api:
+            api_metrics = raw.get("metrics") if isinstance(raw.get("metrics"), dict) else None
+            metrics: dict | None = {**(api_metrics or {}), "source": source} if (api_metrics or source) else None
+            is_featured = bool(raw.get("is_featured", False))
+            display_priority = 80 if is_featured else 50
+        else:
+            metrics = {"source": source} if source else None
+            is_featured = False
+            display_priority = 50
 
         row = PortfolioAsset(
             asset_type="external",
@@ -199,13 +268,17 @@ def import_from_url(
             description=description,
             url=url_field,
             tech_stack=tech_stack or None,
+            tags=tags or None,
             relevance_hint=relevance_hint or None,
             metrics=metrics,
+            is_featured=is_featured,
             status="draft",
             auto_generated=True,
-            display_priority=50,
+            display_priority=display_priority,
         )
         db.add(row)
+        if url_field:
+            existing_urls.add(url_field)  # avoid in-batch duplicates too
         created.append(row)
 
     db.commit()

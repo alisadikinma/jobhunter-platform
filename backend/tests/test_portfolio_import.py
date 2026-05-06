@@ -142,6 +142,192 @@ def test_import_url_requires_auth():
     assert r.status_code == 401
 
 
+def test_import_url_json_fast_path_skips_llm(api, monkeypatch):
+    """alisadikinma.com + token set -> Portfolio CV API JSON path,
+    Firecrawl+LLM extractor stays untouched, items mapped to assets."""
+    client, SessionLocal = api
+
+    # host_supports_api gates on PORTFOLIO_CV_TOKEN — set it in the
+    # service module's settings instance directly so the eligibility
+    # check returns True for alisadikinma.com.
+    monkeypatch.setattr(
+        "app.services.portfolio_cv_api.settings.PORTFOLIO_CV_TOKEN",
+        "cv-test-token",
+    )
+
+    fake_items = [
+        {
+            "title": "AI Visual Inspection",
+            "description": "Industrial QC at the line.",
+            "url": "https://alisadikinma.com/projects/ai-visual-inspection",
+            "tech_stack": ["Python", "PyTorch"],
+            "tags": ["computer_vision", "qc"],
+            "metrics": {"deployments": 3},
+            "relevance_hint": ["ai_automation"],
+            "is_featured": True,
+            "_source": "portfolio-api:alisadikinma.com",
+        },
+        {
+            "title": "Sparkfluence",
+            "description": "Viral content engine.",
+            "url": "https://alisadikinma.com/projects/sparkfluence",
+            "tech_stack": ["Next.js"],
+            "tags": ["content", "ai"],
+            "metrics": None,
+            "relevance_hint": ["ai_video"],
+            "is_featured": False,
+            "_source": "portfolio-api:alisadikinma.com",
+        },
+    ]
+    monkeypatch.setattr(portfolio_api, "fetch_portfolio_projects", lambda: fake_items)
+
+    # Tripwire — if the LLM path runs we want loud failure, not silence.
+    def _llm_should_not_run(*a, **kw):
+        raise AssertionError(
+            "Portfolio JSON fast-path failed — fell through to "
+            "extract_portfolio_from_url. Check host_supports_api wiring."
+        )
+
+    monkeypatch.setattr(portfolio_api, "extract_portfolio_from_url", _llm_should_not_run)
+
+    r = client.post(
+        "/api/portfolio/import-url",
+        json={"url": "https://alisadikinma.com/en"},
+    )
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["count"] == 2
+    assert body["skipped"] == 0
+
+    # Verify the API-specific fields landed correctly.
+    items = {it["title"]: it for it in body["items"]}
+    ai = items["AI Visual Inspection"]
+    assert ai["tags"] == ["computer_vision", "qc"]
+    assert ai["is_featured"] is True
+    assert ai["display_priority"] == 80  # featured boost
+    assert ai["metrics"] == {"deployments": 3, "source": "portfolio-api:alisadikinma.com"}
+    assert ai["relevance_hint"] == ["ai_automation"]
+
+    sf = items["Sparkfluence"]
+    assert sf["is_featured"] is False
+    assert sf["display_priority"] == 50  # default
+    assert sf["relevance_hint"] == ["ai_video"]
+
+    with SessionLocal() as s:
+        rows = s.query(PortfolioAsset).all()
+        assert len(rows) == 2
+
+
+def test_import_url_json_path_dedups_by_url(api, monkeypatch):
+    """Re-running the API import doesn't produce duplicates — items whose
+    URL already exists in portfolio_assets are skipped with a clear
+    skipped_reasons entry."""
+    client, SessionLocal = api
+
+    monkeypatch.setattr(
+        "app.services.portfolio_cv_api.settings.PORTFOLIO_CV_TOKEN",
+        "cv-test-token",
+    )
+
+    fake_items = [
+        {
+            "title": "Stable Project A",
+            "description": "x",
+            "url": "https://alisadikinma.com/projects/a",
+            "tech_stack": [],
+            "tags": [],
+            "metrics": None,
+            "relevance_hint": ["ai_automation"],
+            "is_featured": False,
+            "_source": "portfolio-api:alisadikinma.com",
+        },
+        {
+            "title": "Stable Project B",
+            "description": "y",
+            "url": "https://alisadikinma.com/projects/b",
+            "tech_stack": [],
+            "tags": [],
+            "metrics": None,
+            "relevance_hint": [],
+            "is_featured": False,
+            "_source": "portfolio-api:alisadikinma.com",
+        },
+    ]
+    monkeypatch.setattr(portfolio_api, "fetch_portfolio_projects", lambda: fake_items)
+
+    # First import — clean state, both items inserted.
+    r1 = client.post(
+        "/api/portfolio/import-url",
+        json={"url": "https://alisadikinma.com/en"},
+    )
+    assert r1.status_code == 200
+    assert r1.json()["count"] == 2
+
+    # Second import — same response from API, both should dedup by URL.
+    r2 = client.post(
+        "/api/portfolio/import-url",
+        json={"url": "https://alisadikinma.com/en"},
+    )
+    assert r2.status_code == 200
+    body = r2.json()
+    assert body["count"] == 0
+    assert body["skipped"] == 2
+    assert body["status"] == "partial"
+    assert all("duplicate URL" in reason for reason in body["skipped_reasons"])
+
+    with SessionLocal() as s:
+        # Still 2 rows total — no balloon, no orphan.
+        rows = s.query(PortfolioAsset).all()
+        assert len(rows) == 2
+
+
+def test_import_url_json_path_falls_back_to_llm_on_api_error(api, monkeypatch):
+    """If /export fails (network / 1.x schema / etc.), fall back to the
+    Firecrawl+LLM path silently. Operator never sees a 502 just because
+    the fast-path is unavailable."""
+    client, _ = api
+
+    monkeypatch.setattr(
+        "app.services.portfolio_cv_api.settings.PORTFOLIO_CV_TOKEN",
+        "cv-test-token",
+    )
+
+    from app.services.portfolio_cv_api import PortfolioCVApiError
+
+    def _api_fail():
+        raise PortfolioCVApiError("schema_version '1.0.0' is unsupported")
+
+    monkeypatch.setattr(portfolio_api, "fetch_portfolio_projects", _api_fail)
+
+    fallback_items = [
+        {
+            "title": "Fallback Item",
+            "description": "Came in via Firecrawl + Claude.",
+            "url": None,
+            "tech_stack": ["Go"],
+            "relevance_hint": ["vibe_coding"],
+            "_source": "url:alisadikinma.com",
+        }
+    ]
+    monkeypatch.setattr(
+        portfolio_api,
+        "extract_portfolio_from_url",
+        lambda db, url: fallback_items,
+    )
+
+    r = client.post(
+        "/api/portfolio/import-url",
+        json={"url": "https://alisadikinma.com/en"},
+    )
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["count"] == 1
+    assert body["items"][0]["title"] == "Fallback Item"
+    # Firecrawl path doesn't set is_featured / boosted priority.
+    assert body["items"][0]["is_featured"] is False
+    assert body["items"][0]["display_priority"] == 50
+
+
 def test_import_url_strips_code_fences(api, monkeypatch):
     """Hits the real extractor with mocked Firecrawl + Claude CLI so the
     code-fence-stripping branch in `llm_extractor` is exercised.

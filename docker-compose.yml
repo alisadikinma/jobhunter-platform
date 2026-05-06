@@ -96,6 +96,11 @@ services:
       - PROXY_PASSWORD=${PROXY_PASSWORD:-}
       - FIRECRAWL_API_URL=${FIRECRAWL_API_URL:-http://firecrawl-api:3002}
       - FIRECRAWL_API_KEY=${FIRECRAWL_API_KEY:-}
+      # Portfolio CV API — JSON fast-path for alisadikinma.com imports.
+      # Without the token the import endpoints transparently fall back to
+      # the Firecrawl + Claude CLI extractor (~20-40s vs ~1s).
+      - PORTFOLIO_CV_TOKEN=${PORTFOLIO_CV_TOKEN:-}
+      - PORTFOLIO_CV_API_URL=${PORTFOLIO_CV_API_URL:-https://alisadikinma.com/api/cv/master.md}
     # claude-plugin/ no longer mounted — the Dockerfile clones the plugin
     # repo (github.com/alisadikinma/jobhunter-plugin) at build time.
     # Override JOBHUNTER_PLUGIN_REF build arg to pin a tag/branch.

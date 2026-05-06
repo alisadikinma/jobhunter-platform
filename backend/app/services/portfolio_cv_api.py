@@ -2,6 +2,11 @@
 
 First-party authenticated endpoint at alisadikinma.com/api/cv/*.
 
+The module also exposes a high-level `import_portfolio_drafts(db)`
+helper that wraps fetch + DB-write. Used by both the dedicated
+`/api/portfolio/import-url` endpoint and the CV import endpoint when
+the operator wants both data sets populated from one URL paste.
+
 Two surfaces:
   - /api/cv/master.md  → ready-to-parse markdown (legacy fallback path).
   - /api/cv/export     → JSON Resume v2.0.0 — validates DIRECTLY against
@@ -20,8 +25,10 @@ from typing import Any
 from urllib.parse import urlparse
 
 import httpx
+from sqlalchemy.orm import Session
 
 from app.config import settings
+from app.models.portfolio_asset import PortfolioAsset
 
 log = logging.getLogger(__name__)
 
@@ -189,9 +196,13 @@ def fetch_master_export() -> dict[str, Any]:
 _VARIANT_WHITELIST = {"vibe_coding", "ai_automation", "ai_video"}
 
 
-def fetch_portfolio_projects() -> list[dict]:
-    """Fetch /api/cv/export and re-shape `projects[]` into the dict format
+def fetch_portfolio_projects(export: dict | None = None) -> list[dict]:
+    """Re-shape `projects[]` from /api/cv/export into the dict format
     the /api/portfolio/import-url endpoint expects.
+
+    Pass `export` if the caller already has the /export payload (e.g.
+    the CV import endpoint just fetched it for `MasterCVContent`
+    validation) — saves a duplicate round-trip. Otherwise fetches.
 
     Returned shape per item — drop-in compatible with the existing
     Firecrawl+LLM extractor output, plus extra fields the consumer's
@@ -213,7 +224,7 @@ def fetch_portfolio_projects() -> list[dict]:
     Same auth model + error semantics as fetch_master_export — caller
     short-circuits to this when host_supports_api(url) is true.
     """
-    data = fetch_master_export()
+    data = export if export is not None else fetch_master_export()
     projects = data.get("projects") or []
 
     host = urlparse(_api_base()).netloc.lower() or "alisadikinma.com"
@@ -266,3 +277,78 @@ def fetch_portfolio_projects() -> list[dict]:
             "_source": source_label,
         })
     return items
+
+
+def import_portfolio_drafts(
+    db: Session, export: dict | None = None
+) -> tuple[list[PortfolioAsset], list[str]]:
+    """Fetch portfolio projects from the API and create draft asset rows.
+
+    Pass `export` to skip the /api/cv/export round-trip when the caller
+    already has the payload (e.g. CV import endpoint after JSON
+    validation). Otherwise issues a fresh fetch.
+
+    Dedups by URL against the existing portfolio_assets table — re-running
+    the import doesn't balloon the drafts queue. Featured projects are
+    bumped to display_priority=80 so they surface above generic entries
+    in the review UI.
+
+    Returns (created_rows, skipped_reasons). Caller is responsible for
+    calling `db.commit()` and `db.refresh()` on each row.
+
+    Raises PortfolioCVApiError on token/network/schema failure — the
+    caller decides whether to fail loudly or fall back to another path
+    (e.g. CV import treats portfolio failure as soft, logs and moves on).
+    """
+    items = fetch_portfolio_projects(export=export)
+
+    existing_urls = {
+        row.url
+        for row in db.query(PortfolioAsset.url)
+        .filter(PortfolioAsset.url.isnot(None))
+        .all()
+    }
+
+    created: list[PortfolioAsset] = []
+    skipped_reasons: list[str] = []
+
+    for raw in items:
+        title = (raw.get("title") or "").strip()
+        if not title:
+            skipped_reasons.append("missing title")
+            continue
+
+        url_field = raw.get("url") or None
+        if url_field and url_field in existing_urls:
+            skipped_reasons.append(f"duplicate URL: {url_field}")
+            continue
+
+        api_metrics = raw.get("metrics") if isinstance(raw.get("metrics"), dict) else None
+        source = raw.get("_source")
+        metrics: dict | None = (
+            {**(api_metrics or {}), "source": source}
+            if (api_metrics or source)
+            else None
+        )
+
+        is_featured = bool(raw.get("is_featured", False))
+        row = PortfolioAsset(
+            asset_type="external",
+            title=title[:255],
+            description=(raw.get("description") or "").strip() or None,
+            url=url_field,
+            tech_stack=list(raw.get("tech_stack") or []) or None,
+            tags=list(raw.get("tags") or []) or None,
+            relevance_hint=list(raw.get("relevance_hint") or []) or None,
+            metrics=metrics,
+            is_featured=is_featured,
+            status="draft",
+            auto_generated=True,
+            display_priority=80 if is_featured else 50,
+        )
+        db.add(row)
+        if url_field:
+            existing_urls.add(url_field)
+        created.append(row)
+
+    return created, skipped_reasons

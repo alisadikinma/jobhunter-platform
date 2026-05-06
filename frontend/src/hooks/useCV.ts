@@ -61,6 +61,11 @@ export type MasterCVResult = {
   is_active: boolean;
   content: MasterCVContent;
   source_type: string | null;
+  // Set when the JSON fast-path also created portfolio drafts in the
+  // same call. null = portfolio import wasn't attempted (different host
+  // or operator opted out via include_portfolio=false).
+  portfolio_imported: number | null;
+  portfolio_skipped: number | null;
 };
 
 export function useUploadMasterCV() {
@@ -85,6 +90,9 @@ export type ImportURLPayload = {
   // Optional explicit URL list. Backend uses this if provided and
   // non-empty, else derives 4 portfolio sub-pages from `url`.
   urls?: string[];
+  // When true (default) and the import lands on the JSON fast-path,
+  // also import portfolio drafts in the same call.
+  include_portfolio?: boolean;
 };
 
 export function useImportMasterCVFromURL() {

@@ -179,7 +179,10 @@ def test_import_url_json_fast_path_skips_llm(api, monkeypatch):
             "_source": "portfolio-api:alisadikinma.com",
         },
     ]
-    monkeypatch.setattr(portfolio_api, "fetch_portfolio_projects", lambda: fake_items)
+    monkeypatch.setattr(
+        "app.services.portfolio_cv_api.fetch_portfolio_projects",
+        lambda export=None: fake_items,
+    )
 
     # Tripwire — if the LLM path runs we want loud failure, not silence.
     def _llm_should_not_run(*a, **kw):
@@ -253,7 +256,10 @@ def test_import_url_json_path_dedups_by_url(api, monkeypatch):
             "_source": "portfolio-api:alisadikinma.com",
         },
     ]
-    monkeypatch.setattr(portfolio_api, "fetch_portfolio_projects", lambda: fake_items)
+    monkeypatch.setattr(
+        "app.services.portfolio_cv_api.fetch_portfolio_projects",
+        lambda export=None: fake_items,
+    )
 
     # First import — clean state, both items inserted.
     r1 = client.post(
@@ -294,10 +300,13 @@ def test_import_url_json_path_falls_back_to_llm_on_api_error(api, monkeypatch):
 
     from app.services.portfolio_cv_api import PortfolioCVApiError
 
-    def _api_fail():
+    def _api_fail(export=None):
         raise PortfolioCVApiError("schema_version '1.0.0' is unsupported")
 
-    monkeypatch.setattr(portfolio_api, "fetch_portfolio_projects", _api_fail)
+    monkeypatch.setattr(
+        "app.services.portfolio_cv_api.fetch_portfolio_projects",
+        _api_fail,
+    )
 
     fallback_items = [
         {

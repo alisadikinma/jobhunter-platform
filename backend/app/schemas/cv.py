@@ -115,6 +115,12 @@ class MasterCVResponse(BaseModel):
     content: MasterCVContent
     source_type: str | None
     synced_at: str | None = None
+    # Set when the import endpoint also created portfolio drafts (only
+    # the JSON fast-path can do this — the URL field on Firecrawl items
+    # is too unreliable to dedup on). null means portfolio import was
+    # not attempted; 0 with skipped > 0 means everything was a dup.
+    portfolio_imported: int | None = None
+    portfolio_skipped: int | None = None
 
     model_config = {"from_attributes": True}
 
@@ -132,6 +138,12 @@ class MasterCVImportURLRequest(BaseModel):
     # layouts. `url` stays required for source-type labelling and as the
     # default when `urls` is omitted.
     urls: list[str] | None = None
+    # When true (default) and the import lands on the JSON fast-path
+    # (alisadikinma.com + token), also create portfolio_assets draft
+    # rows from the same /api/cv/export response — same URL = same
+    # source, no need to make the operator click twice. Has no effect
+    # on the markdown / Firecrawl paths.
+    include_portfolio: bool = True
 
 
 # --- generated CV (Phase 10) ---------------------------------------

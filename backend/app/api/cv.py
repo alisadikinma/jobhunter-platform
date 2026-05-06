@@ -48,6 +48,7 @@ from app.services.portfolio_cv_api import (
     fetch_master_export,
     fetch_master_markdown,
     host_supports_api,
+    import_portfolio_drafts,
 )
 from app.services.scorer_service import score_cv
 
@@ -265,12 +266,40 @@ def import_master_from_url(
                 source_type=f"portfolio-api-json:{domain}",
                 raw_markdown=None,  # JSON path skips markdown; raw is the JSON itself
             )
+
+            # Same URL = same data source = also create portfolio drafts
+            # (unless the caller explicitly opted out). Treated as best-
+            # effort: a portfolio failure here does NOT poison the CV save
+            # the operator just spent ~1s waiting for. Just logs + reports
+            # imported=null in the response.
+            portfolio_imported: int | None = None
+            portfolio_skipped: int | None = None
+            if body.include_portfolio:
+                try:
+                    # Re-use the already-fetched /export payload so we
+                    # don't double-roundtrip (and double rate-limit cost).
+                    created, skipped_reasons = import_portfolio_drafts(db, export=export)
+                    db.commit()
+                    portfolio_imported = len(created)
+                    portfolio_skipped = len(skipped_reasons)
+                except PortfolioCVApiError as e:
+                    log.warning(
+                        "CV import succeeded but portfolio side-import failed: %s",
+                        e,
+                    )
+                    db.rollback()
+                except Exception as e:  # don't let a bug here mask the CV success
+                    log.exception("Portfolio side-import raised unexpectedly: %s", e)
+                    db.rollback()
+
             return MasterCVResponse(
                 id=new_row.id,
                 version=new_row.version,
                 is_active=new_row.is_active,
                 content=new_row.content,
                 source_type=new_row.source_type,
+                portfolio_imported=portfolio_imported,
+                portfolio_skipped=portfolio_skipped,
             )
 
     # ---- Path 2 / 3: markdown -> LLM parser --------------------------

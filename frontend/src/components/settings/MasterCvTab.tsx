@@ -100,7 +100,7 @@ export function MasterCvTab() {
     ? "Extracting text and parsing CV (~5–10s)…"
     : importUrl.isPending
     ? isPortfolioApiUrl
-      ? "Fetching JSON from Portfolio CV API (~1s)…"
+      ? "Fetching CV + portfolio drafts from API (~2s)…"
       : "Scraping pages in parallel and parsing CV (~20-40s)…"
     : null;
 
@@ -188,7 +188,19 @@ export function MasterCvTab() {
     }
     try {
       const result = await importUrl.mutateAsync({ url: url.trim() });
-      setShowSuccess(`Imported ${url.trim()} → version ${result.version}`);
+      const parts = [`Imported ${url.trim()} → CV v${result.version}`];
+      if (result.portfolio_imported !== null) {
+        const created = result.portfolio_imported ?? 0;
+        const skipped = result.portfolio_skipped ?? 0;
+        if (created > 0 && skipped === 0) {
+          parts.push(`+ ${created} portfolio drafts`);
+        } else if (created > 0 && skipped > 0) {
+          parts.push(`+ ${created} portfolio drafts (${skipped} dup)`);
+        } else if (created === 0 && skipped > 0) {
+          parts.push(`portfolio: ${skipped} dup, no new`);
+        }
+      }
+      setShowSuccess(parts.join(" · "));
       setUrl("");
       requestAnimationFrame(() =>
         previewRef.current?.scrollIntoView({ behavior: "smooth", block: "start" }),
@@ -298,7 +310,7 @@ export function MasterCvTab() {
             {advancedMode
               ? "Paste one URL per line (4-5 pages recommended for full CV coverage). Always uses the Firecrawl scraper."
               : isPortfolioApiUrl
-              ? "alisadikinma.com — using Portfolio CV API JSON fast-path (~1s, deterministic, no LLM)."
+              ? "alisadikinma.com — Portfolio CV API fast-path. Imports CV + portfolio drafts in one shot (~2s, deterministic)."
               : "Paste a portfolio URL. We auto-fetch /about + work tabs and structure with Claude Sonnet 4.6."}
           </p>
           {advancedMode ? (

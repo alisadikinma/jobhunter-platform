@@ -4,7 +4,10 @@ import {
   ChevronDown,
   ChevronRight,
   Code2,
+  Download,
+  Eye,
   FileCheck2,
+  FileText,
   FileWarning,
   Globe,
   Loader2,
@@ -21,8 +24,10 @@ import {
 } from "react";
 
 import {
+  downloadMasterCV,
   useImportMasterCVFromURL,
   useMasterCV,
+  useMasterCVPreview,
   useSaveMasterCV,
   useUploadMasterCV,
   type MasterCVContent,
@@ -70,6 +75,30 @@ export function MasterCvTab() {
   const [draft, setDraft] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
   const [showJson, setShowJson] = useState<boolean>(false);
+  const [showPreview, setShowPreview] = useState<boolean>(false);
+  const [downloadingFmt, setDownloadingFmt] = useState<"docx" | "pdf" | null>(
+    null,
+  );
+  const [downloadError, setDownloadError] = useState<string | null>(null);
+  const cvPreview = useMasterCVPreview(showPreview);
+
+  async function handleDownload(fmt: "docx" | "pdf") {
+    setDownloadError(null);
+    setDownloadingFmt(fmt);
+    try {
+      await downloadMasterCV(fmt);
+    } catch (e) {
+      const err = e as {
+        response?: { data?: { detail?: string } };
+        message?: string;
+      };
+      setDownloadError(
+        err.response?.data?.detail ?? err.message ?? `Failed to download ${fmt}`,
+      );
+    } finally {
+      setDownloadingFmt(null);
+    }
+  }
   const [url, setUrl] = useState<string>("");
   const [advancedMode, setAdvancedMode] = useState<boolean>(false);
   const [urlList, setUrlList] = useState<string>("");
@@ -586,6 +615,97 @@ export function MasterCvTab() {
               </div>
             );
           })()}
+        </section>
+      )}
+
+      {content && (
+        <section className="card space-y-3 border-l-2 border-l-brand-blue/60">
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <h3 className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wider text-neutral-300">
+                <FileText
+                  className="h-3 w-3 text-brand-blue"
+                  strokeWidth={1.75}
+                />
+                ATS-friendly CV — preview & download
+              </h3>
+              <p className="mt-1 text-xs text-neutral-500">
+                Generic single-column resume rendered from the master CV.
+                Pandoc DOCX + LibreOffice PDF, no LLM tailoring. For
+                per-job tailored CVs, generate from an Application card.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setShowPreview((v) => !v)}
+              className="btn-ghost"
+            >
+              <Eye className="h-4 w-4" strokeWidth={1.75} />
+              {showPreview ? "Hide preview" : "Preview markdown"}
+            </button>
+            <button
+              type="button"
+              onClick={() => handleDownload("docx")}
+              disabled={downloadingFmt !== null}
+              className="btn-primary"
+            >
+              {downloadingFmt === "docx" ? (
+                <Loader2 className="h-4 w-4 animate-spin" strokeWidth={1.75} />
+              ) : (
+                <Download className="h-4 w-4" strokeWidth={1.75} />
+              )}
+              {downloadingFmt === "docx" ? "Rendering…" : "Download DOCX"}
+            </button>
+            <button
+              type="button"
+              onClick={() => handleDownload("pdf")}
+              disabled={downloadingFmt !== null}
+              className="btn-primary"
+            >
+              {downloadingFmt === "pdf" ? (
+                <Loader2 className="h-4 w-4 animate-spin" strokeWidth={1.75} />
+              ) : (
+                <Download className="h-4 w-4" strokeWidth={1.75} />
+              )}
+              {downloadingFmt === "pdf" ? "Rendering…" : "Download PDF"}
+            </button>
+          </div>
+
+          {downloadError && (
+            <div
+              role="alert"
+              className="flex items-start gap-2 rounded-button border border-red-500/30 bg-red-500/5 px-3 py-2 text-sm text-red-300"
+            >
+              <FileWarning
+                className="mt-0.5 h-4 w-4 shrink-0"
+                strokeWidth={1.75}
+              />
+              <span>{downloadError}</span>
+            </div>
+          )}
+
+          {showPreview && (
+            <div className="space-y-2">
+              {cvPreview.isLoading ? (
+                <div className="flex items-center gap-2 text-xs text-neutral-400">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={1.75} />
+                  Rendering markdown…
+                </div>
+              ) : cvPreview.isError ? (
+                <div className="rounded-button border border-red-500/30 bg-red-500/5 px-3 py-2 text-sm text-red-300">
+                  {(cvPreview.error as { message?: string })?.message ??
+                    "Failed to load preview"}
+                </div>
+              ) : cvPreview.data ? (
+                <pre className="max-h-[480px] overflow-auto rounded-card border border-neutral-800 bg-neutral-950 p-4 font-mono text-[11px] leading-relaxed text-neutral-200">
+                  {cvPreview.data.markdown}
+                </pre>
+              ) : null}
+            </div>
+          )}
         </section>
       )}
 

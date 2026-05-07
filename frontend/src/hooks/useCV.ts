@@ -113,6 +113,40 @@ export function useImportMasterCVFromURL() {
   });
 }
 
+export type MasterCVPreview = {
+  version: number;
+  source_type: string | null;
+  markdown: string;
+};
+
+export function useMasterCVPreview(enabled: boolean) {
+  return useQuery({
+    queryKey: ["cv", "master", "preview"],
+    queryFn: async () => (await api.get<MasterCVPreview>("/api/cv/master/preview")).data,
+    enabled,
+    staleTime: 60_000, // refresh on mount-after-stale; shape changes
+                      // only when the operator re-imports
+  });
+}
+
+/** Download the generic master CV as DOCX or PDF. Triggers a browser
+ * file save by passing the response blob through a temporary <a> link.
+ * Auth header survives because the api client adds it transparently. */
+export async function downloadMasterCV(fmt: "docx" | "pdf"): Promise<void> {
+  const res = await api.get(`/api/cv/master/download/${fmt}`, {
+    responseType: "blob",
+    timeout: 120_000, // first pdf render boots LibreOffice headless (~10s cold)
+  });
+  const url = URL.createObjectURL(res.data as Blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `AliSadikinMa-CV.${fmt}`;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
 export type GeneratedCV = {
   id: number;
   application_id: number | null;

@@ -38,6 +38,7 @@ from app.services.cv_parser import (
     parse_cv_to_json_resume,
 )
 from app.services.docx_service import ConversionError, docx_to_pdf, markdown_to_docx
+from app.services.master_cv_renderer import render_master_cv_to_markdown
 from app.services.multi_scraper import (
     MultiScrapeError,
     derive_portfolio_urls,
@@ -351,6 +352,91 @@ def import_master_from_url(
         is_active=new_row.is_active,
         content=new_row.content,
         source_type=new_row.source_type,
+    )
+
+
+# --- master CV ATS preview + download ----------------------------
+
+def _master_artifact_paths(version: int) -> tuple[Path, Path]:
+    """Return (docx_path, pdf_path) for a given master CV version. Files
+    live alongside generated CV artifacts, prefixed `master-cv-vN.*` so
+    they don't collide with per-application tailored CVs."""
+    storage = Path(settings.CV_STORAGE_DIR).resolve()
+    storage.mkdir(parents=True, exist_ok=True)
+    return (
+        storage / f"master-cv-v{version}.docx",
+        storage / f"master-cv-v{version}.pdf",
+    )
+
+
+@router.get("/master/preview")
+def preview_master_cv(
+    db: Session = Depends(get_db),
+    _current: User = Depends(get_current_user),
+):
+    """Render the active master CV into ATS-friendly markdown.
+
+    No LLM call — pure templated render of master_cv.content. Used by
+    the /settings?tab=cv preview pane and as the source for the DOCX /
+    PDF download endpoints below. Returns 404 when no master CV is
+    seeded yet.
+    """
+    active = _active_master(db)
+    if active is None:
+        raise HTTPException(status_code=404, detail="No master CV yet — seed one first")
+    try:
+        markdown = render_master_cv_to_markdown(active.content)
+    except ValueError as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
+    return {
+        "version": active.version,
+        "source_type": active.source_type,
+        "markdown": markdown,
+    }
+
+
+@router.get("/master/download/{fmt}")
+def download_master_cv(
+    fmt: str,
+    db: Session = Depends(get_db),
+    _current: User = Depends(get_current_user),
+):
+    """Stream the rendered master CV as DOCX or PDF.
+
+    Artifacts cache on disk per master CV version — re-running the
+    download for the same version is instant after the first call;
+    creating a new master_cv version (via /master/import-url) renders
+    fresh artifacts on next request.
+    """
+    if fmt not in {"docx", "pdf"}:
+        raise HTTPException(status_code=422, detail="fmt must be 'docx' or 'pdf'")
+
+    active = _active_master(db)
+    if active is None:
+        raise HTTPException(status_code=404, detail="No master CV yet — seed one first")
+
+    docx_path, pdf_path = _master_artifact_paths(active.version)
+    target = docx_path if fmt == "docx" else pdf_path
+
+    if not target.exists():
+        try:
+            markdown = render_master_cv_to_markdown(active.content)
+            ref = Path(settings.CV_REFERENCE_DOCX) if settings.CV_REFERENCE_DOCX else None
+            markdown_to_docx(markdown, docx_path, reference_docx=ref)
+            if fmt == "pdf":
+                docx_to_pdf(docx_path, pdf_path)
+        except ConversionError as e:
+            raise HTTPException(status_code=502, detail=str(e)) from e
+
+    media_type = (
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        if fmt == "docx"
+        else "application/pdf"
+    )
+    return FileResponse(
+        path=str(target),
+        media_type=media_type,
+        filename=f"AliSadikinMa-CV.{fmt}",
     )
 
 

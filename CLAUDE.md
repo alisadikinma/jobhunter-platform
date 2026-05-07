@@ -497,3 +497,17 @@ before you go deeper.
 - Commits: conventional commits (`feat:`, `fix:`, `chore:`, `docs:`)
 - Branches: `feat/<name>`, `fix/<name>`
 - No comments unless explaining WHY (not WHAT)
+
+### Model selection by task effort
+
+Pick the cheapest model that can do the job well. Default per effort tier:
+
+| Effort | Model | Model ID | When to use |
+|---|---|---|---|
+| **High** — complex, ambiguous, multi-file | **Opus 4.7** | `claude-opus-4-7` | Architecture / design, end-to-end feature builds, deep debugging, security review, ambiguous specs, anything needing strategic reasoning across many files. Default for `gaspol-brainstorm`, `gaspol-plan`, `gaspol-design`, `gaspol-debug`, complex `gaspol-execute` phases, `cv-tailor` skill (master CV → tailored variant rewrite). |
+| **Medium** — scoped feature work | **Sonnet 4.6** | `claude-sonnet-4-6` | Implement a planned phase, write tests, scaffold modules, code review, docs sync, CV parsing (URL→JSON Resume). Default for `gaspol-execute` mid-complexity phases, `article-prep`, `article-score`, `linkedin-*`, `cv-parser`. |
+| **Low** — mechanical / single-file | **Haiku 4.5** | `claude-haiku-4-5-20251001` | Renames, typo fixes, format / lint passes, simple lookups, single-line patches, status checks, classification. Use for `job-score` batch scoring, simple `cold-email` follow-up drafts, log triage. |
+
+Within a Claude Code session, switch via `/model <id>` or per-skill via the skill's frontmatter override. Subagent dispatches inherit the parent model unless the `model` field is set on the `Agent` call.
+
+Claude API spawns from the backend (Python subprocess via `app/services/claude_service.py`) already pass `model_used` per skill — keep that aligned with this table when adding new skills.

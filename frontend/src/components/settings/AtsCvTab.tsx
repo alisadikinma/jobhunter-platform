@@ -11,17 +11,37 @@ import Link from "next/link";
 import { useState } from "react";
 
 import {
+  AtsTemplate,
   downloadMasterCV,
   useMasterCV,
   useMasterCVHtmlPreview,
 } from "@/hooks/useCV";
 
+const TEMPLATES: { value: AtsTemplate; label: string; hint: string }[] = [
+  {
+    value: "plain",
+    label: "Plain ATS",
+    hint: "Arial 11pt, ALL-CAPS section headers — maximum parser compatibility.",
+  },
+  {
+    value: "classic",
+    label: "Classic",
+    hint: "Times New Roman, centered name — traditional resume look.",
+  },
+  {
+    value: "modern",
+    label: "Modern",
+    hint: "Calibri with navy accent — recruiter-skim friendly.",
+  },
+];
+
 export function AtsCvTab() {
   const { data: master, isLoading: masterLoading } = useMasterCV();
+  const [template, setTemplate] = useState<AtsTemplate>("plain");
   // Preview is always enabled on this tab — opening the tab IS the
   // preview action, no toggle required (the whole tab is dedicated to
   // showing the rendered CV).
-  const cvPreview = useMasterCVHtmlPreview(true);
+  const cvPreview = useMasterCVHtmlPreview(true, template);
   const [downloadingFmt, setDownloadingFmt] = useState<"docx" | "pdf" | null>(
     null,
   );
@@ -31,7 +51,7 @@ export function AtsCvTab() {
     setDownloadError(null);
     setDownloadingFmt(fmt);
     try {
-      await downloadMasterCV(fmt);
+      await downloadMasterCV(fmt, template);
     } catch (e) {
       const err = e as {
         response?: { data?: { detail?: string } };
@@ -85,8 +105,8 @@ export function AtsCvTab() {
           </h1>
           <p className="mt-1 text-sm text-neutral-500">
             Single-column resume rendered from the active master CV (v
-            {master.version}). Calibri 11pt body, ATS-parser-safe layout —
-            same template across DOCX, PDF, and the preview below.
+            {master.version}). Pick a template — the preview, DOCX, and
+            PDF all render in the same style.
           </p>
         </div>
 
@@ -136,6 +156,34 @@ export function AtsCvTab() {
           </button>
         </div>
       </header>
+
+      <div className="card flex flex-col gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-[11px] font-medium uppercase tracking-wider text-neutral-400">
+            Template
+          </span>
+          {TEMPLATES.map((t) => {
+            const active = t.value === template;
+            return (
+              <button
+                key={t.value}
+                type="button"
+                onClick={() => setTemplate(t.value)}
+                className={
+                  active
+                    ? "rounded-button border border-brand-blue/60 bg-brand-blue/15 px-3 py-1 text-xs font-medium text-brand-blue"
+                    : "rounded-button border border-neutral-700 bg-neutral-800/40 px-3 py-1 text-xs text-neutral-300 hover:bg-neutral-800/80"
+                }
+              >
+                {t.label}
+              </button>
+            );
+          })}
+        </div>
+        <p className="text-[11px] text-neutral-500">
+          {TEMPLATES.find((t) => t.value === template)?.hint}
+        </p>
+      </div>
 
       {downloadError && (
         <div

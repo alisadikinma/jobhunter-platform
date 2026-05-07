@@ -118,22 +118,38 @@ def _date_range(start: Any, end: Any, *, current_label: str = "Present") -> str:
 
 def _profiles_inline(profiles: list[dict]) -> str:
     """Compress the profiles[] array into a single comma-joined line
-    suitable for the contact line. Skips anything missing a URL."""
+    suitable for the contact line. Skips anything missing a URL.
+
+    For social handles (Instagram, TikTok, X, etc.) we prefer the
+    `@handle` form over a verbose `instagram.com/handle` URL — recruiters
+    parse the @-form natively and ATS parsers tokenise on it cleanly."""
     if not isinstance(profiles, list):
         return ""
+    handle_networks = {"instagram", "tiktok", "twitter", "x", "threads", "youtube"}
     parts: list[str] = []
     for p in profiles:
         if not isinstance(p, dict):
             continue
         url = (p.get("url") or "").strip()
+        net = (p.get("network") or "").strip()
+        username = (p.get("username") or "").strip().lstrip("@")
+        if not url and not username:
+            continue
+        net_key = net.lower()
+        if net_key in handle_networks and username:
+            # Preserve the original casing if the caller bothered to type it
+            # properly (e.g. "TikTok") — `.title()` would rewrite it to
+            # "Tiktok". Only fall back to title-casing when the input looks
+            # all-lowercase / all-uppercase.
+            net_label = net if any(c.islower() for c in net) and any(c.isupper() for c in net) else net.title()
+            parts.append(f"{net_label}: @{username}")
+            continue
         if not url:
             continue
-        # Strip the scheme so the inline line stays compact for ATS
-        # parsers that auto-link plain text.
         display = re.sub(r"^https?://(www\.)?", "", url).rstrip("/")
-        net = (p.get("network") or "").strip()
         if net and net.lower() not in display.lower():
-            parts.append(f"{net.title()}: {display}")
+            net_label = net if any(c.islower() for c in net) and any(c.isupper() for c in net) else net.title()
+            parts.append(f"{net_label}: {display}")
         else:
             parts.append(display)
     return " · ".join(parts)
@@ -262,6 +278,47 @@ def _render_certifications(certs: list[dict]) -> str:
     return "\n".join(bullets)
 
 
+def _shorten_url(url: str, *, max_len: int = 38) -> str:
+    """Compact a long URL for ATS rendering.
+
+    Strips scheme + leading www, then collapses long path segments to
+    `domain.com/.../tail` so the line stays under ~38 chars. Recruiters
+    skim — a 90-char project URL chews up an entire line and pushes the
+    actual project name out of the visual scan path.
+
+    Examples:
+      https://www.alisadikinma.com/work/some-very-long-project-slug-name
+        → alisadikinma.com/.../slug-name
+      https://github.com/alisadikinma/jobhunter
+        → github.com/alisadikinma/jobhunter   (already short, untouched)
+    """
+    if not url:
+        return ""
+    cleaned = re.sub(r"^https?://(www\.)?", "", url).rstrip("/")
+    if len(cleaned) <= max_len:
+        return cleaned
+    # Split into [domain, *path_parts]; always keep domain + last segment.
+    parts = cleaned.split("/")
+    if len(parts) <= 2:
+        # Bare domain or domain/single-segment that's still long — truncate the segment.
+        head = parts[0]
+        tail = parts[1]
+        budget = max_len - len(head) - len("/.../")
+        if budget < 4:
+            return head + "/..."
+        return f"{head}/...{tail[-budget:]}"
+    domain = parts[0]
+    tail = parts[-1]
+    candidate = f"{domain}/.../{tail}"
+    if len(candidate) <= max_len:
+        return candidate
+    # Tail itself is too long — chop from the front.
+    budget = max_len - len(domain) - len("/.../")
+    if budget < 4:
+        return f"{domain}/..."
+    return f"{domain}/...{tail[-budget:]}"
+
+
 def _render_projects(projects: list[dict], cap: int = 10) -> str:
     if not isinstance(projects, list) or not projects:
         return ""
@@ -289,7 +346,7 @@ def _render_projects(projects: list[dict], cap: int = 10) -> str:
         url = (p.get("url") or "").strip()
         head = f"### {name}"
         if url:
-            head += f" — {re.sub(r'^https?://(www\\.)?', '', url).rstrip('/')}"
+            head += f" — {_shorten_url(url)}"
         description = _strip_html(p.get("description"))
         tech = p.get("tech_stack")
         tech_line = ""
@@ -307,25 +364,14 @@ def _render_projects(projects: list[dict], cap: int = 10) -> str:
     return "\n\n".join(blocks)
 
 
-def _render_thought_leadership(posts: list[dict]) -> str:
-    if not isinstance(posts, list) or not posts:
+def _website_for_header(basics: dict) -> str:
+    """Return the candidate's primary website (basics.url) trimmed of scheme,
+    or empty string if none. Kept separate so it can sit on the contact line
+    next to email/phone instead of being buried inside `profiles`."""
+    url = (basics.get("url") or "").strip()
+    if not url:
         return ""
-    bullets: list[str] = []
-    for t in posts:
-        if not isinstance(t, dict):
-            continue
-        title = (t.get("title") or "").strip()
-        if not title:
-            continue
-        url = (t.get("url") or "").strip()
-        date = _format_date(t.get("published_at"))
-        suffix = f" · {date}" if date else ""
-        if url:
-            display = re.sub(r"^https?://(www\.)?", "", url).rstrip("/")
-            bullets.append(f"- \"{title}\" — {display}{suffix}")
-        else:
-            bullets.append(f"- \"{title}\"{suffix}")
-    return "\n".join(bullets)
+    return re.sub(r"^https?://(www\.)?", "", url).rstrip("/")
 
 
 def render_master_cv_to_markdown(content: dict, template: str = "plain") -> str:
@@ -333,11 +379,14 @@ def render_master_cv_to_markdown(content: dict, template: str = "plain") -> str:
 
     The header (name + contact + profiles) always comes first; the body
     sections are ordered per `SECTION_ORDER[template]` to match the
-    recruiter-pleasing convention for that template family. Thought
-    leadership is appended after the ordered sections (it's a "nice to
-    have" trailing block, not a primary section). Empty sections are
-    omitted entirely — an empty `## Education` heading confuses ATS
-    parsers more than its absence.
+    recruiter-pleasing convention for that template family (Harvard puts
+    Education first; Jake's puts Skills first; Plain leads with
+    Experience). Empty sections are omitted entirely — an empty
+    `## Education` heading confuses ATS parsers more than its absence.
+
+    Section-header casing also varies per template (plain → ALL CAPS;
+    classic / modern → Title Case; the latter rely on CSS for visual
+    uppercasing).
     """
     if not isinstance(content, dict):
         raise ValueError("content must be a dict")
@@ -370,6 +419,10 @@ def render_master_cv_to_markdown(content: dict, template: str = "plain") -> str:
             contact_parts.append(loc_str)
     elif isinstance(location, str):
         contact_parts.append(location)
+
+    website = _website_for_header(basics)
+    if website:
+        contact_parts.append(website)
 
     profiles_line = _profiles_inline(basics.get("profiles") or [])
 
@@ -453,15 +506,12 @@ def render_master_cv_to_markdown(content: dict, template: str = "plain") -> str:
     }
 
     # --- Emit in template-specific order ---------------------------
+    # Thought Leadership is intentionally NOT rendered — the user removed
+    # it from the public CV. Old `master_cv.content.thought_leadership`
+    # data is silently ignored here.
     for key in SECTION_ORDER[template]:
         chunk = section_blocks.get(key, "")
         if chunk:
             parts.append(chunk)
-
-    # --- Thought Leadership (always trailing) ---------------------
-    thought_block = _render_thought_leadership(content.get("thought_leadership") or [])
-    if thought_block:
-        parts.append(f"\n{_section_header('Thought Leadership', template)}\n")
-        parts.append(thought_block)
 
     return "\n".join(parts).strip() + "\n"

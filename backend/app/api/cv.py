@@ -7,7 +7,7 @@ import logging
 from pathlib import Path
 from urllib.parse import urlparse
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from fastapi.responses import FileResponse, PlainTextResponse
 from pydantic import ValidationError
 from sqlalchemy import select
@@ -43,7 +43,10 @@ from app.services.docx_service import (
     markdown_to_docx,
     markdown_to_html,
 )
-from app.services.master_cv_renderer import render_master_cv_to_markdown
+from app.services.master_cv_renderer import (
+    SUPPORTED_TEMPLATES,
+    render_master_cv_to_markdown,
+)
 from app.services.multi_scraper import (
     MultiScrapeError,
     derive_portfolio_urls,
@@ -362,20 +365,33 @@ def import_master_from_url(
 
 # --- master CV ATS preview + download ----------------------------
 
-def _master_artifact_paths(version: int) -> tuple[Path, Path]:
-    """Return (docx_path, pdf_path) for a given master CV version. Files
-    live alongside generated CV artifacts, prefixed `master-cv-vN.*` so
-    they don't collide with per-application tailored CVs."""
+def _master_artifact_paths(version: int, template: str) -> tuple[Path, Path]:
+    """Return (docx_path, pdf_path) for a given master CV version + template.
+
+    Files live alongside generated CV artifacts, prefixed
+    `master-cv-vN-<template>.*` so different template renderings don't
+    overwrite each other and so a rendered PDF can be served instantly
+    on the second request without re-running pandoc + libreoffice.
+    """
     storage = Path(settings.CV_STORAGE_DIR).resolve()
     storage.mkdir(parents=True, exist_ok=True)
     return (
-        storage / f"master-cv-v{version}.docx",
-        storage / f"master-cv-v{version}.pdf",
+        storage / f"master-cv-v{version}-{template}.docx",
+        storage / f"master-cv-v{version}-{template}.pdf",
     )
+
+
+def _resolve_template(template: str | None) -> str:
+    """Coerce a query-param template value to one of SUPPORTED_TEMPLATES,
+    silently falling back to 'plain' so a typo in the URL never 422s."""
+    if template and template in SUPPORTED_TEMPLATES:
+        return template
+    return "plain"
 
 
 @router.get("/master/preview")
 def preview_master_cv(
+    template: str | None = Query(default=None),
     db: Session = Depends(get_db),
     _current: User = Depends(get_current_user),
 ):
@@ -389,37 +405,94 @@ def preview_master_cv(
     active = _active_master(db)
     if active is None:
         raise HTTPException(status_code=404, detail="No master CV yet — seed one first")
+    tpl = _resolve_template(template)
     try:
-        markdown = render_master_cv_to_markdown(active.content)
+        markdown = render_master_cv_to_markdown(active.content, template=tpl)
     except ValueError as e:
         raise HTTPException(status_code=500, detail=str(e)) from e
     return {
         "version": active.version,
         "source_type": active.source_type,
+        "template": tpl,
         "markdown": markdown,
     }
 
 
-_HTML_PREVIEW_CSS = """
-:root {
-  color-scheme: light dark;
-  --fg: #0d1117;
-  --fg-muted: #555;
-  --accent: #141e32;
-  --bg: #ffffff;
-  --rule: #d0d7de;
-}
-@media (prefers-color-scheme: dark) {
-  :root {
-    --fg: #e6edf3;
-    --fg-muted: #9ba8b8;
-    --accent: #c0d4ff;
-    --bg: #0d1117;
-    --rule: #30363d;
-  }
-}
+# Three CSS profiles matching the three SUPPORTED_TEMPLATES. Forced
+# light theme (white background, dark text) on every template — the
+# preview is meant to mirror what a recruiter / ATS sees, not the
+# operator's dark IDE preference. Picked sans / serif / sans for
+# plain / classic / modern respectively to give the templates a clear
+# visual fingerprint at a glance.
+_PLAIN_CSS = """
 * { box-sizing: border-box; }
-html, body { margin: 0; padding: 0; background: var(--bg); color: var(--fg); }
+html, body { margin: 0; padding: 0; background: #ffffff; color: #111111; }
+body {
+  font: 11pt/1.4 Arial, Helvetica, sans-serif;
+  max-width: 7.1in;
+  padding: 0.55in 0.7in;
+  margin: 0 auto;
+}
+h1 { font-size: 18pt; font-weight: 700; margin: 0 0 4pt 0; }
+h2 {
+  font-size: 11.5pt;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 14pt 0 4pt 0;
+  padding-bottom: 2pt;
+  border-bottom: 1pt solid #111111;
+}
+h3 { font-size: 11pt; font-weight: 700; margin: 9pt 0 2pt 0; }
+p { margin: 0 0 5pt 0; }
+em { font-style: italic; color: #333333; font-size: 10.5pt; }
+strong { font-weight: 700; }
+ul { margin: 3pt 0 5pt 0; padding-left: 18pt; }
+ul li { margin-bottom: 2pt; }
+a { color: inherit; text-decoration: none; }
+hr { border: 0; border-top: 0.5pt solid #999999; margin: 6pt 0; }
+"""
+
+_CLASSIC_CSS = """
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: #ffffff; color: #1a1a1a; }
+body {
+  font: 11pt/1.5 'Times New Roman', Times, Cambria, serif;
+  max-width: 7.1in;
+  padding: 0.7in 0.8in;
+  margin: 0 auto;
+}
+h1 {
+  font-size: 22pt;
+  font-weight: 700;
+  text-align: center;
+  margin: 0 0 2pt 0;
+  letter-spacing: 1px;
+}
+h1 + p { text-align: center; }
+h1 + p + p { text-align: center; font-size: 10.5pt; }
+h2 {
+  font-size: 12pt;
+  font-weight: 700;
+  text-transform: none;
+  letter-spacing: 0;
+  margin: 16pt 0 4pt 0;
+  padding-bottom: 2pt;
+  border-bottom: 0.75pt solid #1a1a1a;
+}
+h3 { font-size: 11.5pt; font-weight: 700; margin: 10pt 0 2pt 0; font-style: normal; }
+p { margin: 0 0 5pt 0; }
+em { font-style: italic; color: #444444; font-size: 10.5pt; }
+strong { font-weight: 700; }
+ul { margin: 3pt 0 5pt 0; padding-left: 22pt; }
+ul li { margin-bottom: 2pt; }
+a { color: inherit; text-decoration: none; }
+hr { border: 0; border-top: 0.5pt solid #999999; margin: 6pt 0; }
+"""
+
+_MODERN_CSS = """
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: #ffffff; color: #0d1117; }
 body {
   font: 11pt/1.45 Calibri, 'Segoe UI', Arial, sans-serif;
   max-width: 7.1in;
@@ -429,73 +502,69 @@ body {
 h1 {
   font-size: 24pt;
   font-weight: 700;
-  color: var(--accent);
+  color: #141e32;
   margin: 0 0 4pt 0;
   letter-spacing: -0.5px;
 }
 h2 {
   font-size: 13pt;
   font-weight: 700;
-  color: var(--accent);
+  color: #141e32;
   text-transform: uppercase;
   letter-spacing: 1.2px;
   margin: 18pt 0 6pt 0;
   padding-bottom: 3pt;
-  border-bottom: 0.75pt solid var(--rule);
+  border-bottom: 0.75pt solid #d0d7de;
 }
-h3 {
-  font-size: 12pt;
-  font-weight: 700;
-  margin: 12pt 0 2pt 0;
-}
+h3 { font-size: 12pt; font-weight: 700; margin: 12pt 0 2pt 0; }
 p { margin: 0 0 6pt 0; }
-em {
-  font-style: italic;
-  color: var(--fg-muted);
-  font-size: 10pt;
-}
+em { font-style: italic; color: #555555; font-size: 10pt; }
 strong { font-weight: 700; }
-ul {
-  margin: 4pt 0 6pt 0;
-  padding-left: 20pt;
-}
+ul { margin: 4pt 0 6pt 0; padding-left: 20pt; }
 ul li { margin-bottom: 2pt; }
 a { color: inherit; text-decoration: underline; }
-hr { border: 0; border-top: 0.5pt solid var(--rule); margin: 6pt 0; }
+hr { border: 0; border-top: 0.5pt solid #d0d7de; margin: 6pt 0; }
 """
+
+_TEMPLATE_CSS = {
+    "plain": _PLAIN_CSS,
+    "classic": _CLASSIC_CSS,
+    "modern": _MODERN_CSS,
+}
 
 
 @router.get("/master/preview.html", response_class=PlainTextResponse)
 def preview_master_cv_html(
+    template: str | None = Query(default=None),
     db: Session = Depends(get_db),
     _current: User = Depends(get_current_user),
 ):
     """Render the master CV markdown to a styled standalone HTML page.
 
     Pandoc handles markdown→HTML; we wrap the body in our own `<html>`
-    + `<style>` matching the DOCX template (24pt H1, 13pt uppercase
-    tracking H2, 12pt H3, Calibri 11pt body) so the on-screen preview
-    matches the downloaded DOCX/PDF layout. Returned as a raw HTML
-    string the frontend feeds to an `<iframe srcDoc=...>` for safe
-    sandboxed rendering.
+    + `<style>` matching the chosen template family (plain / classic /
+    modern). Returned as a raw HTML string the frontend feeds to an
+    `<iframe srcDoc=...>` for safe sandboxed rendering.
     """
     active = _active_master(db)
     if active is None:
         raise HTTPException(status_code=404, detail="No master CV yet — seed one first")
+    tpl = _resolve_template(template)
     try:
-        markdown = render_master_cv_to_markdown(active.content)
+        markdown = render_master_cv_to_markdown(active.content, template=tpl)
         body_html = markdown_to_html(markdown)
     except (ValueError, ConversionError) as e:
         raise HTTPException(status_code=502, detail=str(e)) from e
 
+    css = _TEMPLATE_CSS.get(tpl, _PLAIN_CSS)
     html = (
         "<!DOCTYPE html>\n"
         "<html lang=\"en\">\n"
         "<head>\n"
         "<meta charset=\"utf-8\">\n"
         "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n"
-        f"<title>CV preview · v{active.version}</title>\n"
-        f"<style>{_HTML_PREVIEW_CSS}</style>\n"
+        f"<title>CV preview · v{active.version} · {tpl}</title>\n"
+        f"<style>{css}</style>\n"
         "</head>\n"
         "<body>\n"
         f"{body_html}\n"
@@ -508,15 +577,16 @@ def preview_master_cv_html(
 @router.get("/master/download/{fmt}")
 def download_master_cv(
     fmt: str,
+    template: str | None = Query(default=None),
     db: Session = Depends(get_db),
     _current: User = Depends(get_current_user),
 ):
     """Stream the rendered master CV as DOCX or PDF.
 
-    Artifacts cache on disk per master CV version — re-running the
-    download for the same version is instant after the first call;
-    creating a new master_cv version (via /master/import-url) renders
-    fresh artifacts on next request.
+    Artifacts cache on disk per (master CV version, template) — re-
+    running the download for the same combo is instant after the first
+    call; creating a new master_cv version (via /master/import-url) or
+    switching template renders fresh artifacts on next request.
     """
     if fmt not in {"docx", "pdf"}:
         raise HTTPException(status_code=422, detail="fmt must be 'docx' or 'pdf'")
@@ -525,12 +595,13 @@ def download_master_cv(
     if active is None:
         raise HTTPException(status_code=404, detail="No master CV yet — seed one first")
 
-    docx_path, pdf_path = _master_artifact_paths(active.version)
+    tpl = _resolve_template(template)
+    docx_path, pdf_path = _master_artifact_paths(active.version, tpl)
     target = docx_path if fmt == "docx" else pdf_path
 
     if not target.exists():
         try:
-            markdown = render_master_cv_to_markdown(active.content)
+            markdown = render_master_cv_to_markdown(active.content, template=tpl)
             ref = Path(settings.CV_REFERENCE_DOCX) if settings.CV_REFERENCE_DOCX else None
             markdown_to_docx(markdown, docx_path, reference_docx=ref)
             if fmt == "pdf":
@@ -546,7 +617,7 @@ def download_master_cv(
     return FileResponse(
         path=str(target),
         media_type=media_type,
-        filename=f"AliSadikinMa-CV.{fmt}",
+        filename=f"AliSadikinMa-CV-{tpl}.{fmt}",
     )
 
 

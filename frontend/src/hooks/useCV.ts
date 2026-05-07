@@ -129,14 +129,22 @@ export function useMasterCVPreview(enabled: boolean) {
   });
 }
 
-/** Fetch the styled HTML preview (the same template the DOCX uses).
- * Result is a complete `<html>` document the consumer feeds into an
- * `<iframe srcDoc>` for sandboxed in-browser rendering. */
-export function useMasterCVHtmlPreview(enabled: boolean) {
+export type AtsTemplate = "plain" | "classic" | "modern";
+
+/** Fetch the styled HTML preview, scoped to a chosen ATS template
+ * (plain / classic / modern). Result is a complete `<html>` document
+ * the consumer feeds into an `<iframe srcDoc>` for sandboxed in-browser
+ * rendering. Different templates have separate query keys so flipping
+ * between them is instant after the first fetch. */
+export function useMasterCVHtmlPreview(
+  enabled: boolean,
+  template: AtsTemplate = "plain",
+) {
   return useQuery({
-    queryKey: ["cv", "master", "preview", "html"],
+    queryKey: ["cv", "master", "preview", "html", template],
     queryFn: async () => {
       const { data } = await api.get<string>("/api/cv/master/preview.html", {
+        params: { template },
         responseType: "text",
         transformResponse: (r) => r as string,
       });
@@ -150,15 +158,19 @@ export function useMasterCVHtmlPreview(enabled: boolean) {
 /** Download the generic master CV as DOCX or PDF. Triggers a browser
  * file save by passing the response blob through a temporary <a> link.
  * Auth header survives because the api client adds it transparently. */
-export async function downloadMasterCV(fmt: "docx" | "pdf"): Promise<void> {
+export async function downloadMasterCV(
+  fmt: "docx" | "pdf",
+  template: AtsTemplate = "plain",
+): Promise<void> {
   const res = await api.get(`/api/cv/master/download/${fmt}`, {
+    params: { template },
     responseType: "blob",
     timeout: 120_000, // first pdf render boots LibreOffice headless (~10s cold)
   });
   const url = URL.createObjectURL(res.data as Blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `AliSadikinMa-CV.${fmt}`;
+  a.download = `AliSadikinMa-CV-${template}.${fmt}`;
   document.body.appendChild(a);
   a.click();
   a.remove();

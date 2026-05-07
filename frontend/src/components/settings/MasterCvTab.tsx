@@ -27,7 +27,7 @@ import {
   downloadMasterCV,
   useImportMasterCVFromURL,
   useMasterCV,
-  useMasterCVPreview,
+  useMasterCVHtmlPreview,
   useSaveMasterCV,
   useUploadMasterCV,
   type MasterCVContent,
@@ -80,7 +80,7 @@ export function MasterCvTab() {
     null,
   );
   const [downloadError, setDownloadError] = useState<string | null>(null);
-  const cvPreview = useMasterCVPreview(showPreview);
+  const cvPreview = useMasterCVHtmlPreview(showPreview);
 
   async function handleDownload(fmt: "docx" | "pdf") {
     setDownloadError(null);
@@ -692,7 +692,7 @@ export function MasterCvTab() {
               {cvPreview.isLoading ? (
                 <div className="flex items-center gap-2 text-xs text-neutral-400">
                   <Loader2 className="h-3.5 w-3.5 animate-spin" strokeWidth={1.75} />
-                  Rendering markdown…
+                  Rendering preview…
                 </div>
               ) : cvPreview.isError ? (
                 <div className="rounded-button border border-red-500/30 bg-red-500/5 px-3 py-2 text-sm text-red-300">
@@ -700,9 +700,14 @@ export function MasterCvTab() {
                     "Failed to load preview"}
                 </div>
               ) : cvPreview.data ? (
-                <pre className="max-h-[480px] overflow-auto rounded-card border border-neutral-800 bg-neutral-950 p-4 font-mono text-[11px] leading-relaxed text-neutral-200">
-                  {cvPreview.data.markdown}
-                </pre>
+                <div className="overflow-hidden rounded-card border border-neutral-800 bg-white">
+                  <iframe
+                    title="CV preview"
+                    srcDoc={cvPreview.data}
+                    sandbox=""
+                    className="h-[640px] w-full border-0"
+                  />
+                </div>
               ) : null}
             </div>
           )}

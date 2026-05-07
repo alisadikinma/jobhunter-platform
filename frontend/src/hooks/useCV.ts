@@ -129,6 +129,24 @@ export function useMasterCVPreview(enabled: boolean) {
   });
 }
 
+/** Fetch the styled HTML preview (the same template the DOCX uses).
+ * Result is a complete `<html>` document the consumer feeds into an
+ * `<iframe srcDoc>` for sandboxed in-browser rendering. */
+export function useMasterCVHtmlPreview(enabled: boolean) {
+  return useQuery({
+    queryKey: ["cv", "master", "preview", "html"],
+    queryFn: async () => {
+      const { data } = await api.get<string>("/api/cv/master/preview.html", {
+        responseType: "text",
+        transformResponse: (r) => r as string,
+      });
+      return data;
+    },
+    enabled,
+    staleTime: 60_000,
+  });
+}
+
 /** Download the generic master CV as DOCX or PDF. Triggers a browser
  * file save by passing the response blob through a temporary <a> link.
  * Auth header survives because the api client adds it transparently. */

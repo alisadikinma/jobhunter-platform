@@ -64,6 +64,33 @@ def markdown_to_docx(
     return output_path
 
 
+def markdown_to_html(markdown: str, *, runner=None) -> str:
+    """Render `markdown` to a standalone HTML fragment via Pandoc.
+
+    Returns the HTML body only (no <html>/<head>) — the consumer wraps
+    it in a styled <iframe srcdoc>. We don't pass --standalone because
+    Pandoc would inject its own boilerplate <head> with default fonts
+    that fight against our embedded preview CSS.
+    """
+    cmd = ["pandoc", "-f", "markdown", "-t", "html5"]
+    try:
+        result = _resolve_runner(runner)(
+            cmd,
+            input=markdown,
+            text=True,
+            check=True,
+            capture_output=True,
+            timeout=30,
+        )
+    except FileNotFoundError as e:
+        raise ConversionError("pandoc binary not on PATH") from e
+    except subprocess.CalledProcessError as e:
+        raise ConversionError(
+            f"pandoc html render failed (exit {e.returncode}): {e.stderr or e.stdout}"
+        ) from e
+    return result.stdout if hasattr(result, "stdout") else ""
+
+
 def docx_to_pdf(
     docx_path: Path,
     output_path: Path,

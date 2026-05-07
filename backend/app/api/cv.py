@@ -8,7 +8,7 @@ from pathlib import Path
 from urllib.parse import urlparse
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, PlainTextResponse
 from pydantic import ValidationError
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -37,7 +37,12 @@ from app.services.cv_parser import (
     is_supported_upload,
     parse_cv_to_json_resume,
 )
-from app.services.docx_service import ConversionError, docx_to_pdf, markdown_to_docx
+from app.services.docx_service import (
+    ConversionError,
+    docx_to_pdf,
+    markdown_to_docx,
+    markdown_to_html,
+)
 from app.services.master_cv_renderer import render_master_cv_to_markdown
 from app.services.multi_scraper import (
     MultiScrapeError,
@@ -393,6 +398,111 @@ def preview_master_cv(
         "source_type": active.source_type,
         "markdown": markdown,
     }
+
+
+_HTML_PREVIEW_CSS = """
+:root {
+  color-scheme: light dark;
+  --fg: #0d1117;
+  --fg-muted: #555;
+  --accent: #141e32;
+  --bg: #ffffff;
+  --rule: #d0d7de;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --fg: #e6edf3;
+    --fg-muted: #9ba8b8;
+    --accent: #c0d4ff;
+    --bg: #0d1117;
+    --rule: #30363d;
+  }
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; background: var(--bg); color: var(--fg); }
+body {
+  font: 11pt/1.45 Calibri, 'Segoe UI', Arial, sans-serif;
+  max-width: 7.1in;
+  padding: 0.6in 0.7in;
+  margin: 0 auto;
+}
+h1 {
+  font-size: 24pt;
+  font-weight: 700;
+  color: var(--accent);
+  margin: 0 0 4pt 0;
+  letter-spacing: -0.5px;
+}
+h2 {
+  font-size: 13pt;
+  font-weight: 700;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  margin: 18pt 0 6pt 0;
+  padding-bottom: 3pt;
+  border-bottom: 0.75pt solid var(--rule);
+}
+h3 {
+  font-size: 12pt;
+  font-weight: 700;
+  margin: 12pt 0 2pt 0;
+}
+p { margin: 0 0 6pt 0; }
+em {
+  font-style: italic;
+  color: var(--fg-muted);
+  font-size: 10pt;
+}
+strong { font-weight: 700; }
+ul {
+  margin: 4pt 0 6pt 0;
+  padding-left: 20pt;
+}
+ul li { margin-bottom: 2pt; }
+a { color: inherit; text-decoration: underline; }
+hr { border: 0; border-top: 0.5pt solid var(--rule); margin: 6pt 0; }
+"""
+
+
+@router.get("/master/preview.html", response_class=PlainTextResponse)
+def preview_master_cv_html(
+    db: Session = Depends(get_db),
+    _current: User = Depends(get_current_user),
+):
+    """Render the master CV markdown to a styled standalone HTML page.
+
+    Pandoc handles markdown→HTML; we wrap the body in our own `<html>`
+    + `<style>` matching the DOCX template (24pt H1, 13pt uppercase
+    tracking H2, 12pt H3, Calibri 11pt body) so the on-screen preview
+    matches the downloaded DOCX/PDF layout. Returned as a raw HTML
+    string the frontend feeds to an `<iframe srcDoc=...>` for safe
+    sandboxed rendering.
+    """
+    active = _active_master(db)
+    if active is None:
+        raise HTTPException(status_code=404, detail="No master CV yet — seed one first")
+    try:
+        markdown = render_master_cv_to_markdown(active.content)
+        body_html = markdown_to_html(markdown)
+    except (ValueError, ConversionError) as e:
+        raise HTTPException(status_code=502, detail=str(e)) from e
+
+    html = (
+        "<!DOCTYPE html>\n"
+        "<html lang=\"en\">\n"
+        "<head>\n"
+        "<meta charset=\"utf-8\">\n"
+        "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n"
+        f"<title>CV preview · v{active.version}</title>\n"
+        f"<style>{_HTML_PREVIEW_CSS}</style>\n"
+        "</head>\n"
+        "<body>\n"
+        f"{body_html}\n"
+        "</body>\n"
+        "</html>\n"
+    )
+    return PlainTextResponse(content=html, media_type="text/html; charset=utf-8")
 
 
 @router.get("/master/download/{fmt}")

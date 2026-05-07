@@ -42,11 +42,14 @@ COPY ./alembic.ini ./alembic.ini
 COPY ./scripts ./scripts
 COPY ./templates ./templates
 
-# Generate the Pandoc reference DOCX inside the image. The file isn't
-# committed (binary + locale-dependent); Pandoc's built-in default is
-# single-column and ATS-safe, which is exactly what /cv-tailor needs.
-RUN pandoc --print-default-data-file=reference.docx > /app/templates/cv-template.docx \
- && test -s /app/templates/cv-template.docx
+# Build the ATS-friendly Pandoc reference DOCX from the python-docx
+# script. The committed `cv-ats-template.docx` is the source of truth;
+# this rebuild step makes the image deterministic against the script
+# (so editing the script and rebuilding always picks up the new styles
+# instead of relying on a stale committed binary). Falls through to
+# the committed copy if regeneration fails for any reason.
+RUN python scripts/generate_cv_template.py \
+ && test -s /app/templates/cv-ats-template.docx
 
 RUN mkdir -p /tmp/jobhunter_agent_jobs /app/storage/cvs /home/claudesn
 
@@ -60,7 +63,7 @@ RUN chown -R 1003:1003 /tmp/jobhunter_agent_jobs /app/storage /home/claudesn
 
 ENV CLAUDE_PLUGIN_PATH=/app/claude-plugin
 ENV CV_STORAGE_DIR=/app/storage/cvs
-ENV CV_REFERENCE_DOCX=/app/templates/cv-template.docx
+ENV CV_REFERENCE_DOCX=/app/templates/cv-ats-template.docx
 ENV AGENT_JOB_LOG_DIR=/tmp/jobhunter_agent_jobs
 
 EXPOSE 8000

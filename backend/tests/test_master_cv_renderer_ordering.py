@@ -118,3 +118,65 @@ def test_modern_template_skills_first_ordering(sample_content):
     assert projects < edu, (
         f"modern ordering: projects at {projects} expected < education at {edu}"
     )
+
+
+@pytest.mark.parametrize("template", ["plain", "classic", "modern"])
+def test_projects_emit_no_per_project_urls(sample_content, template):
+    """Per-project URLs were retired (cosmetic-truncated `domain.com/...slug`
+    forms were non-clickable garbage on PDF/print). The renderer must not
+    emit any URL on a project's H3 line, even when the project carries a
+    `url` field — recruiters use the catalog link instead."""
+    sample_content = dict(sample_content)
+    sample_content["projects"] = [
+        {
+            "name": "JobHunter",
+            "description": "ATS pipeline.",
+            "url": "https://www.alisadikinma.com/work/some-very-long-project-slug-name",
+            "tech_stack": ["FastAPI"],
+        }
+    ]
+    md = render_master_cv_to_markdown(sample_content, template=template)
+    # H3 line must NOT carry a URL or its truncated cosmetic stub.
+    assert "### JobHunter\n" in md or "### JobHunter\r\n" in md or md.rstrip().endswith("### JobHunter") or "### JobHunter " not in md, (
+        f"{template} project H3 still carries trailing decoration: {md!r}"
+    )
+    # Truncation glyph from the old _shorten_url() helper must be gone.
+    assert "/.../" not in md, f"{template} still emits the old `/.../` truncation stub"
+    # The full project URL must not appear in the project block (it was the
+    # source of the cosmetic stubs).
+    assert "some-very-long-project-slug-name" not in md, (
+        f"{template} leaked the per-project URL into the rendered markdown"
+    )
+
+
+def test_projects_section_emits_catalog_url_when_set(sample_content):
+    """When `basics.projects_url` is set, the Selected Projects section
+    leads with a single italicised catalog link (full URL, plain text so
+    ATS parsers can extract it)."""
+    sample_content = dict(sample_content)
+    sample_content["basics"] = {
+        **sample_content["basics"],
+        "projects_url": "https://alisadikinma.com/en/work?tab=projects",
+    }
+    md = render_master_cv_to_markdown(sample_content, template="plain")
+    assert "_Full project list: https://alisadikinma.com/en/work?tab=projects_" in md, (
+        f"catalog link missing from rendered markdown: {md!r}"
+    )
+    # Catalog line must sit between the Selected Projects header and the
+    # first project H3 inside that section. Scope the search past the
+    # Selected Projects header so the Experience section's H3s don't
+    # poison the assertion.
+    section_start = md.lower().index("selected projects")
+    catalog_idx = md.index("Full project list:", section_start)
+    first_project_h3_idx = md.index("### ", section_start)
+    assert section_start < catalog_idx < first_project_h3_idx, (
+        "catalog link must sit between the Selected Projects header and the first project H3"
+    )
+
+
+def test_projects_section_omits_catalog_url_when_unset(sample_content):
+    """No `projects_url` → no catalog line. Section header still appears."""
+    md = render_master_cv_to_markdown(sample_content, template="plain")
+    assert "Full project list" not in md, (
+        "renderer should not invent a catalog line when basics.projects_url is unset"
+    )

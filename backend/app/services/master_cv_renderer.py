@@ -278,48 +278,16 @@ def _render_certifications(certs: list[dict]) -> str:
     return "\n".join(bullets)
 
 
-def _shorten_url(url: str, *, max_len: int = 38) -> str:
-    """Compact a long URL for ATS rendering.
-
-    Strips scheme + leading www, then collapses long path segments to
-    `domain.com/.../tail` so the line stays under ~38 chars. Recruiters
-    skim — a 90-char project URL chews up an entire line and pushes the
-    actual project name out of the visual scan path.
-
-    Examples:
-      https://www.alisadikinma.com/work/some-very-long-project-slug-name
-        → alisadikinma.com/.../slug-name
-      https://github.com/alisadikinma/jobhunter
-        → github.com/alisadikinma/jobhunter   (already short, untouched)
-    """
-    if not url:
-        return ""
-    cleaned = re.sub(r"^https?://(www\.)?", "", url).rstrip("/")
-    if len(cleaned) <= max_len:
-        return cleaned
-    # Split into [domain, *path_parts]; always keep domain + last segment.
-    parts = cleaned.split("/")
-    if len(parts) <= 2:
-        # Bare domain or domain/single-segment that's still long — truncate the segment.
-        head = parts[0]
-        tail = parts[1]
-        budget = max_len - len(head) - len("/.../")
-        if budget < 4:
-            return head + "/..."
-        return f"{head}/...{tail[-budget:]}"
-    domain = parts[0]
-    tail = parts[-1]
-    candidate = f"{domain}/.../{tail}"
-    if len(candidate) <= max_len:
-        return candidate
-    # Tail itself is too long — chop from the front.
-    budget = max_len - len(domain) - len("/.../")
-    if budget < 4:
-        return f"{domain}/..."
-    return f"{domain}/...{tail[-budget:]}"
-
-
 def _render_projects(projects: list[dict], cap: int = 10) -> str:
+    """Render the top `cap` projects as titled blocks (no per-project URLs).
+
+    Per-project URLs were dropped because the truncated `domain.com/...slug`
+    form was non-clickable cosmetic noise on PDF/print CVs — recruiters who
+    want to browse projects use the single `basics.projects_url` portfolio
+    link emitted at the top of the section instead. Each project block
+    keeps its name, description, and tech stack: the substance, not the
+    URL plumbing.
+    """
     if not isinstance(projects, list) or not projects:
         return ""
     # Featured first, then anything with metrics filled, then natural order.
@@ -343,10 +311,7 @@ def _render_projects(projects: list[dict], cap: int = 10) -> str:
     blocks: list[str] = []
     for p in ranked:
         name = (p.get("name") or p.get("title") or "").strip()
-        url = (p.get("url") or "").strip()
         head = f"### {name}"
-        if url:
-            head += f" — {_shorten_url(url)}"
         description = _strip_html(p.get("description"))
         tech = p.get("tech_stack")
         tech_line = ""
@@ -489,11 +454,22 @@ def render_master_cv_to_markdown(content: dict, template: str = "plain") -> str:
     )
 
     projects_block = _render_projects(content.get("projects") or [])
-    projects_chunk = (
-        f"\n{_section_header('Selected Projects', template)}\n\n{projects_block}"
-        if projects_block
-        else ""
-    )
+    if projects_block:
+        projects_lines: list[str] = [
+            f"\n{_section_header('Selected Projects', template)}\n",
+        ]
+        # Single catalog link replaces per-project URLs — recruiters get one
+        # canonical place to browse the full portfolio. Plain text URL (not
+        # markdown link) so ATS parsers tokenise cleanly and PDF viewers
+        # auto-link it. Rendered in italics to read as meta, not body.
+        portfolio_url = (basics.get("projects_url") or "").strip()
+        if portfolio_url:
+            projects_lines.append(f"_Full project list: {portfolio_url}_")
+            projects_lines.append("")
+        projects_lines.append(projects_block)
+        projects_chunk = "\n".join(projects_lines)
+    else:
+        projects_chunk = ""
 
     section_blocks: dict[str, str] = {
         "summary": summary_chunk,

@@ -8,6 +8,11 @@ historical master via master_cv_id).
 Patches:
   - basics.email      → aiagent@alisadikinma.com
   - basics.url        → https://www.alisadikinma.com (header website)
+  - basics.projects_url → https://alisadikinma.com/en/work?tab=projects
+                        (single catalog URL emitted at top of the
+                        Selected Projects section — replaces the
+                        ten cosmetic-truncated per-project URLs that
+                        looked like garbage on PDF/print)
   - basics.label      → punchier "#1 Champion of 26 startups from 16
                         countries" Outskill framing (no "Founder",
                         no "Solopreneur" — flagged as risk signals
@@ -51,6 +56,7 @@ from app.models.cv import MasterCV  # noqa: E402
 
 NEW_EMAIL = "aiagent@alisadikinma.com"
 NEW_WEBSITE = "https://www.alisadikinma.com"
+NEW_PROJECTS_URL = "https://alisadikinma.com/en/work?tab=projects"
 NEW_LABEL = (
     "#1 Champion at Outskill Demo Day (beating 26 startups from 16 countries) "
     "· Vibe Coding · AI Agents · Automation · Video Gen · Batam, working globally"
@@ -160,6 +166,7 @@ def _patch_content(content: dict) -> tuple[dict, dict]:
     basics["email"] = NEW_EMAIL
     basics["url"] = NEW_WEBSITE
     basics["label"] = NEW_LABEL
+    basics["projects_url"] = NEW_PROJECTS_URL
 
     # --- Profiles: drop twitter, add IG + TikTok -----------------
     existing = basics.get("profiles") or []

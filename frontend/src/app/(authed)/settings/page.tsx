@@ -3,22 +3,30 @@
 import { Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
+import { AtsCvTab } from "@/components/settings/AtsCvTab";
 import { CredentialsTab } from "@/components/settings/CredentialsTab";
 import { MasterCvTab } from "@/components/settings/MasterCvTab";
 import { PortfolioTab } from "@/components/settings/PortfolioTab";
 import { SchedulesTab } from "@/components/settings/SchedulesTab";
 import { cn } from "@/lib/utils";
 
-type TabId = "cv" | "portfolio" | "credentials" | "schedules";
+type TabId = "cv" | "ats-cv" | "portfolio" | "credentials" | "schedules";
 
 const TABS: { id: TabId; label: string }[] = [
   { id: "cv", label: "CV" },
+  { id: "ats-cv", label: "ATS CV" },
   { id: "portfolio", label: "Portfolio" },
   { id: "credentials", label: "Credentials" },
   { id: "schedules", label: "Schedules" },
 ];
 
-const VALID_TABS = new Set<TabId>(["cv", "portfolio", "credentials", "schedules"]);
+const VALID_TABS = new Set<TabId>([
+  "cv",
+  "ats-cv",
+  "portfolio",
+  "credentials",
+  "schedules",
+]);
 
 function SettingsTabs() {
   const router = useRouter();
@@ -62,6 +70,7 @@ function SettingsTabs() {
 
       <div role="tabpanel">
         {active === "cv" && <MasterCvTab />}
+        {active === "ats-cv" && <AtsCvTab />}
         {active === "portfolio" && <PortfolioTab />}
         {active === "credentials" && <CredentialsTab />}
         {active === "schedules" && <SchedulesTab />}

@@ -101,15 +101,50 @@ _FOUNDER_PATTERNS: list[tuple[re.Pattern, str]] = [
 ]
 
 
+_HTML_TAG_RE = re.compile(r"<[^>]+>")
+_BLOCK_TAG_RE = re.compile(r"</(p|div|li|h[1-6])>", re.IGNORECASE)
+_BR_RE = re.compile(r"<br\s*/?>", re.IGNORECASE)
+
+
+def _html_to_plain(text: str) -> str:
+    """Strip HTML tags to plain prose while keeping paragraph breaks.
+
+    Mirrors the renderer's `_strip_html` — needed inside this script
+    because the master CV summary fields often arrive from Portfolio_v2
+    wrapped in `<p>` / `<strong>` / `<em>` tags. Running the regex
+    scrubs against the wrapped form misses matches like
+    `our <strong>AI Visual Inspection</strong>` because the tag splits
+    the phrase across token boundaries.
+    """
+    if not isinstance(text, str) or not text:
+        return text or ""
+    from html import unescape
+    out = _BLOCK_TAG_RE.sub("\n\n", text)
+    out = _BR_RE.sub("\n", out)
+    out = _HTML_TAG_RE.sub("", out)
+    out = unescape(out)
+    out = re.sub(r"[ \t]+", " ", out)
+    out = re.sub(r"[ \t]*\n[ \t]*", "\n", out)
+    out = re.sub(r"\n{3,}", "\n\n", out)
+    return out.strip()
+
+
 def _scrub_founder_framing(text: str | None) -> str | None:
     """Apply the founder→engineer rewrites to free-text fields.
 
-    Returns the rewritten string. None / non-string passes through unchanged.
-    Repeated runs are no-ops because every pattern's RHS no longer matches its LHS.
+    Strips HTML to plain prose first — the regex patterns target words,
+    not markup, so `<strong>` tag interspersion would otherwise break
+    matches like `our AI Visual Inspection`. Renderer also strips HTML
+    at render time, so storing plain-text summaries loses no rendered
+    output (Portfolio_v2 re-imports will rehydrate the rich form).
+
+    Returns the rewritten string. None / non-string passes through
+    unchanged. Repeated runs are no-ops because every pattern's RHS no
+    longer matches its LHS.
     """
     if not isinstance(text, str) or not text:
         return text
-    out = text
+    out = _html_to_plain(text)
     for pat, repl in _FOUNDER_PATTERNS:
         out = pat.sub(repl, out)
     # Collapse any double-space / orphaned punctuation introduced by deletions.

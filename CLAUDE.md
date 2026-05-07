@@ -44,15 +44,18 @@ D:\Projects\jobhunter\
 │   │   ├── models/              # SQLAlchemy ORM models
 │   │   ├── schemas/             # Pydantic request/response
 │   │   ├── api/                 # Route handlers
-│   │   ├── services/            # Business logic (claude, apify_pool, cv_generator, etc.)
+│   │   ├── services/            # Business logic — claude, apify_pool, cv_generator,
+│   │   │                        # master_cv_renderer, portfolio_cv_api, docx_service, ...
 │   │   ├── scrapers/            # Per-source scraper implementations
 │   │   ├── utils/               # Deduplicator, keyword matcher, etc.
 │   │   └── core/                # Security, deps
 │   ├── alembic/                 # DB migrations
 │   ├── tests/
-│   ├── scripts/                 # seed_admin.py, seed_master_cv.py
+│   ├── scripts/                 # seed_admin.py, seed_master_cv.py,
+│   │                            # generate_cv_template.py (python-docx ATS template)
 │   ├── storage/                 # Generated CVs (DOCX/PDF), gitignored
-│   ├── templates/               # Pandoc DOCX reference template
+│   ├── templates/               # cv-ats-template.docx (committed; ATS-friendly
+│   │                            # Pandoc reference, regenerated at build time)
 │   ├── requirements.txt
 │   └── Dockerfile
 ├── frontend/                    # Next.js 15
@@ -160,10 +163,19 @@ GET    /api/applications/activity-timeline?days=N    # for dashboard chart
 # WebSocket — live progress for any agent_job (CV tailor, cold email, job score)
 WS     /ws/progress/{agent_job_id}?token=<JWT>
 
-# CV
-GET    /api/cv/master
-PUT    /api/cv/master
-POST   /api/cv/generate
+# CV — master (active record + ATS-friendly download)
+GET    /api/cv/master                                # active master_cv content
+PUT    /api/cv/master                                # manual JSON edit
+POST   /api/cv/master/upload                         # PDF/DOCX/MD/TXT -> LLM parse
+POST   /api/cv/master/import-url                     # URL -> JSON-fast-path / md+LLM / Firecrawl
+                                                     # body: {url, urls?, include_portfolio?}
+                                                     # returns: portfolio_imported / _skipped when JSON path also created drafts
+GET    /api/cv/master/preview                        # rendered ATS markdown (no LLM)
+GET    /api/cv/master/preview.html                   # standalone styled HTML for iframe srcDoc
+GET    /api/cv/master/download/{docx|pdf}            # cached per master_cv.version
+
+# CV — tailored per application (cv-tailor skill via Claude CLI)
+POST   /api/cv/generate                              # body: {application_id} -> spawns /cv-tailor
 GET    /api/cv/{id}
 PUT    /api/cv/{id}
 POST   /api/cv/{id}/score
@@ -189,6 +201,8 @@ POST   /api/portfolio/{id}/publish
 POST   /api/portfolio/{id}/skip
 DELETE /api/portfolio/{id}
 POST   /api/portfolio/audit
+POST   /api/portfolio/import-url                     # JSON-fast-path or Firecrawl,
+                                                     # URL-dedup on the API path
 
 # Apify Pool
 GET    /api/apify/accounts
@@ -284,11 +298,32 @@ before you go deeper.
 - **Pandoc + LibreOffice are both required at runtime for PDF.** Pandoc does
   Markdown → DOCX; LibreOffice headless does DOCX → PDF. Pandoc's PDF engines
   (xelatex, wkhtmltopdf) all break in slim containers — see the docstring at
-  `backend/app/services/docx_service.py::docx_to_pdf`. The `cv-template.docx`
-  Pandoc reference is generated at Docker build time
-  (`backend/Dockerfile`, the `--print-default-data-file` step) so no binary
-  lives in git; for dev hosts run
-  `python backend/scripts/generate_cv_template.py`.
+  `backend/app/services/docx_service.py::docx_to_pdf`. Both binaries are
+  installed in `backend/Dockerfile`; dev hosts on Windows can render
+  preview/download against a running container instead of installing locally.
+- **DOCX style template is built programmatically.** `cv-ats-template.docx`
+  is committed to `backend/templates/` and regenerated at Docker build time
+  via `backend/scripts/generate_cv_template.py` (python-docx, NOT pandoc
+  `--print-default-data-file`). The script defines ATS-safe styles —
+  Calibri 11pt body, navy H1 24pt, uppercase tracking H2 13pt with bottom
+  border, H3 12pt, 0.6"×0.7" margins. Edit the script + commit + redeploy
+  to refresh styles deterministically. `CV_REFERENCE_DOCX` env var points
+  at this file. The legacy `cv-template.docx` (Pandoc default) was
+  retired May 2026; do not reintroduce.
+- **HTML preview wraps the same markdown the DOCX uses.** The
+  `/api/cv/master/preview.html` endpoint runs `pandoc -t html5` and wraps
+  the output in inline `<style>` mirroring the DOCX template
+  (24pt H1, 13pt uppercase H2, 12pt H3, Calibri). Frontend
+  `AtsCvTab.tsx` feeds the response into `<iframe srcDoc sandbox="">`
+  for safe render — sandbox="" blocks JS / forms inside the doc, so any
+  CSS/HTML changes that need to interact with the parent must move into
+  the React component instead.
+- **`master_cv.source_type` was widened from `varchar(20)` to `varchar(64)`
+  in migration `014_widen_master_cv_source_type`.** The label
+  `portfolio-api-json:alisadikinma.com` (35ch) blew the old ceiling; even
+  `url:<longer-fqdn>` was already at the limit. New
+  `<provider>-<variant>:<host>` source labels need to fit in 64 — anything
+  longer needs a new migration.
 - **Apify tokens are Fernet-encrypted.** `APIFY_FERNET_KEY` is required even in
   dev — without it `apify_pool.encrypt`/`decrypt` raise on the first DB read.
   Generate via
@@ -312,6 +347,39 @@ before you go deeper.
   `docker-compose.yml` because the upstream image is large and not everyone
   needs JD enrichment. Without the profile, `services/firecrawl_service.py`
   short-circuits to a no-op.
+- **Portfolio CV API JSON fast-path needs `PORTFOLIO_CV_TOKEN` listed in
+  `docker-compose.yml`'s `api.environment:` block.** Adding it to `.env`
+  alone does NOT pass it through to the container — compose only relays
+  variables that are explicitly listed (or `env_file:`-loaded). Same for
+  `PORTFOLIO_CV_API_URL`. When the token is missing in-container,
+  `host_supports_api()` returns False for alisadikinma.com URLs and the
+  import silently falls back to the Firecrawl + LLM path (~20-40s,
+  hallucinated skills like "Citus" / "Replit Agent" / "HIKROBOT" instead
+  of the deterministic API output).
+- **Portfolio_v2 CV data lives in `settings.about.experience`, NOT
+  `settings.cv.work_experience`.** The CV API is a content-bearing
+  surface that points at the same admin form rows the public /about page
+  already renders. Field name mapping (Portfolio_v2 → jobhunter):
+    `about.experience.title`       → `work[].position`
+    `about.experience.description` → `work[].summary` (HTML stripped)
+    `about.experience.end_date ""` → `work[].end_date null`
+    `site.contact_email`           → `basics.email`
+    `site.contact_phone`           → `basics.phone`
+    `about.languages`              → `basics.languages`
+    `about.certifications`         → top-level `certifications[]`
+  The legacy `cv.work_experience` / `about.email` / `about.phone` settings
+  are still consulted as fallbacks but should be considered deprecated.
+  Education is the one section without an `about.*` source — it stays at
+  `cv.education` until Portfolio_v2 grows a proper Education model.
+- **CV import endpoint imports portfolio drafts in the same call by
+  default.** When `body.include_portfolio` is true (default) AND the JSON
+  fast-path lands AND the host is alisadikinma.com, `/api/cv/master/import-url`
+  also creates `portfolio_assets` draft rows from the same `/api/cv/export`
+  payload (single fetch, not double-roundtrip). Response carries
+  `portfolio_imported` + `portfolio_skipped` counts. URL dedup is
+  applied so re-import doesn't balloon the drafts queue. Portfolio
+  side-import is best-effort: any error there is logged + swallowed
+  (returned as null counts) rather than rolling back the CV save.
 
 ### Claude CLI / skills
 
@@ -393,6 +461,32 @@ before you go deeper.
 - **Variant CSS classes (`bg-variant-vibe` / `automation` / `video`) live in
   `tailwind.config.ts`.** If you add a fourth variant, add the matching
   `bg-variant-X` token there or the dashboard chips render transparent.
+- **Internal nav uses `next/link`, not `<a href>`.** Next.js production
+  build runs ESLint with `@next/next/no-html-link-for-pages` as a hard
+  error, so `<a href="/applications">` aborts the deploy at the
+  `npm run build` step. `tsc --noEmit` does NOT catch this; only the
+  full Next build does. Either run `npm run build` locally before
+  pushing frontend changes OR always use `<Link href="...">` from
+  `next/link` for internal routes.
+
+### Deploy
+
+- **Build cache survives Dockerfile RUN changes.** `docker compose build
+  --pull` (the default in `scripts/deploy.sh`) refreshes base layers but
+  reuses cached `RUN`/`COPY`/`ENV` layers when their immediate inputs
+  haven't visibly changed. Symptom: container runs old `ENV
+  CV_REFERENCE_DOCX=...` after editing the Dockerfile, or old static
+  assets after editing the Next.js build chain. Fix: `DEPLOY_FORCE_REBUILD=1
+  ./scripts/deploy.sh` on the VPS, OR trigger the workflow with
+  `force_rebuild=true` via `gh workflow run deploy.yml -f
+  force_rebuild=true`. The frontend container is similarly cache-prone
+  when only `.tsx` files change — the COPY layer hash invalidates but
+  npm install can re-run from cache. Force a rebuild after large
+  layout changes that don't bump dependencies.
+- **`docker compose up -d` does NOT re-read `.env` for already-running
+  containers.** It only recreates containers when their image hash
+  changed. To pick up new env-var values added to `.env` without a code
+  change, use `docker compose up -d --force-recreate <service>`.
 
 ## Conventions
 

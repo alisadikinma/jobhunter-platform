@@ -11,6 +11,7 @@ import {
   Save,
   Upload,
 } from "lucide-react";
+import Link from "next/link";
 import {
   type ChangeEvent,
   type DragEvent,
@@ -592,12 +593,12 @@ export function MasterCvTab() {
       {content && (
         <p className="text-xs text-neutral-500">
           Need a downloadable resume? Switch to the{" "}
-          <a
+          <Link
             className="text-brand-blue hover:underline"
             href="/settings?tab=ats-cv"
           >
             ATS CV
-          </a>{" "}
+          </Link>{" "}
           tab — preview, DOCX, PDF.
         </p>
       )}

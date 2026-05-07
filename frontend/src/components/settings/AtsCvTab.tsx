@@ -7,6 +7,7 @@ import {
   Loader2,
   RefreshCw,
 } from "lucide-react";
+import Link from "next/link";
 import { useState } from "react";
 
 import {
@@ -62,9 +63,12 @@ export function AtsCvTab() {
         </h3>
         <p className="mt-2 text-sm text-neutral-300">
           Import or upload a master CV first under the{" "}
-          <a className="text-brand-blue hover:underline" href="/settings?tab=cv">
+          <Link
+            className="text-brand-blue hover:underline"
+            href="/settings?tab=cv"
+          >
             CV
-          </a>{" "}
+          </Link>{" "}
           tab — this tab renders the active master CV into an
           ATS-friendly resume.
         </p>
@@ -187,9 +191,9 @@ export function AtsCvTab() {
           For per-job tailored CVs (Claude rewrites the summary +
           ranks bullets against a target JD), generate from an
           application card under{" "}
-          <a className="hover:text-neutral-300" href="/applications">
+          <Link className="hover:text-neutral-300" href="/applications">
             Applications
-          </a>
+          </Link>
           .
         </span>
       </footer>

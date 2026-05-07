@@ -439,8 +439,20 @@ export function MasterCvTab() {
               <div className="text-[10px] uppercase tracking-wider text-neutral-500">
                 Work entries
               </div>
-              <div className="text-sm text-neutral-200">
+              <div
+                className={cn(
+                  "text-sm",
+                  (content.work?.length ?? 0) >= 2
+                    ? "text-neutral-200"
+                    : "text-amber-400",
+                )}
+              >
                 {content.work?.length ?? 0}
+                {(content.work?.length ?? 0) < 2 && (
+                  <span className="ml-1 text-[10px] text-amber-400/80">
+                    (low)
+                  </span>
+                )}
               </div>
             </div>
             <div>
@@ -449,6 +461,62 @@ export function MasterCvTab() {
               </div>
               <div className="text-sm text-neutral-200">
                 {content.projects?.length ?? 0}
+              </div>
+            </div>
+            <div>
+              <div className="text-[10px] uppercase tracking-wider text-neutral-500">
+                Education
+              </div>
+              <div
+                className={cn(
+                  "text-sm",
+                  ((content as { education?: unknown[] }).education?.length ??
+                    0) > 0
+                    ? "text-neutral-200"
+                    : "text-amber-400",
+                )}
+              >
+                {(content as { education?: unknown[] }).education?.length ?? 0}
+              </div>
+            </div>
+            <div>
+              <div className="text-[10px] uppercase tracking-wider text-neutral-500">
+                Awards
+              </div>
+              <div className="text-sm text-neutral-200">
+                {(content as { awards?: unknown[] }).awards?.length ?? 0}
+              </div>
+            </div>
+            <div>
+              <div className="text-[10px] uppercase tracking-wider text-neutral-500">
+                Thought leadership
+              </div>
+              <div className="text-sm text-neutral-200">
+                {(content as { thought_leadership?: unknown[] })
+                  .thought_leadership?.length ?? 0}
+              </div>
+            </div>
+            <div>
+              <div className="text-[10px] uppercase tracking-wider text-neutral-500">
+                Summary variants
+              </div>
+              <div
+                className={cn(
+                  "text-sm",
+                  content.basics?.summary_variants &&
+                    content.basics.summary_variants.vibe_coding &&
+                    content.basics.summary_variants.ai_automation &&
+                    content.basics.summary_variants.ai_video
+                    ? "text-emerald-400"
+                    : "text-amber-400",
+                )}
+              >
+                {content.basics?.summary_variants &&
+                content.basics.summary_variants.vibe_coding &&
+                content.basics.summary_variants.ai_automation &&
+                content.basics.summary_variants.ai_video
+                  ? "3/3 ✓"
+                  : "incomplete"}
               </div>
             </div>
           </div>
@@ -479,6 +547,45 @@ export function MasterCvTab() {
               </div>
             </div>
           )}
+
+          {/* ATS-readiness audit. Flags the gaps an ATS parser will
+              penalize even though the import itself succeeded. */}
+          {(() => {
+            const c = content as {
+              work?: unknown[];
+              education?: unknown[];
+              basics?: { email?: string | null };
+            };
+            const issues: string[] = [];
+            if ((c.work?.length ?? 0) < 2) {
+              issues.push(
+                "Work history is sparse — ATS parsers compute years-of-experience from work[] start/end dates. Add prior employer rows in Portfolio_v2 admin → /admin/about → CV Master Export → work_experience JSON.",
+              );
+            }
+            if ((c.education?.length ?? 0) === 0) {
+              issues.push(
+                "Education section empty. Add at least one entry (institution, degree, dates) via the same admin form, even if self-taught — ATS template parsers expect the section.",
+              );
+            }
+            if (!c.basics?.email) {
+              issues.push(
+                "Email is null. Set it in Portfolio_v2 admin → /admin/about → email field, or fill via the Advanced JSON editor below.",
+              );
+            }
+            if (issues.length === 0) return null;
+            return (
+              <div className="rounded-button border border-amber-500/40 bg-amber-500/5 px-3 py-2 text-xs leading-relaxed">
+                <div className="mb-1 font-medium uppercase tracking-wider text-amber-400">
+                  ATS readiness — {issues.length} gap{issues.length > 1 ? "s" : ""}
+                </div>
+                <ul className="list-inside list-disc space-y-1 text-amber-200/90">
+                  {issues.map((msg) => (
+                    <li key={msg}>{msg}</li>
+                  ))}
+                </ul>
+              </div>
+            );
+          })()}
         </section>
       )}
 

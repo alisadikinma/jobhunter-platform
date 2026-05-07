@@ -31,6 +31,36 @@ _BR_RE = re.compile(r"<br\s*/?>", re.IGNORECASE)
 _TAG_RE = re.compile(r"<[^>]+>")
 
 
+# Per-template section ordering. Keys MUST stay in lockstep with
+# SUPPORTED_TEMPLATES — the module-level assertion below enforces this so
+# a new template can't be added without explicitly choosing a section
+# order (otherwise the renderer would silently fall back to plain and
+# the recruiter-pleasing intent would be lost).
+SUPPORTED_TEMPLATES: tuple[str, ...] = ("plain", "classic", "modern")
+
+SECTION_ORDER: dict[str, tuple[str, ...]] = {
+    # Engineer-first (default): Jake's Resume convention
+    "plain":   ("summary", "experience", "skills", "projects", "education", "awards", "certifications"),
+    # Academic-first: Harvard OCS convention — education leads, projects last
+    "classic": ("summary", "education", "experience", "skills", "awards", "certifications", "projects"),
+    # Skills-first: Rezi convention — pitches the toolkit before the resume body
+    "modern":  ("summary", "skills", "experience", "projects", "awards", "education", "certifications"),
+}
+
+assert set(SECTION_ORDER.keys()) == set(SUPPORTED_TEMPLATES), (
+    "SECTION_ORDER must define ordering for every template in SUPPORTED_TEMPLATES"
+)
+
+
+def _section_header(name: str, template: str) -> str:
+    """Return the H2 line for a section, cased per template.
+
+    `plain` uses ALL CAPS for stronger ATS keyword anchoring; `classic`
+    and `modern` use Title Case for human readability.
+    """
+    return f"## {name.upper()}" if template == "plain" else f"## {name}"
+
+
 def _strip_html(value: Any) -> str:
     """Strip HTML to plain text but preserve paragraph breaks (\\n\\n)
     and line breaks (\\n) so the resulting markdown keeps narrative
@@ -298,17 +328,23 @@ def _render_thought_leadership(posts: list[dict]) -> str:
     return "\n".join(bullets)
 
 
-def render_master_cv_to_markdown(content: dict) -> str:
+def render_master_cv_to_markdown(content: dict, template: str = "plain") -> str:
     """Compose the full ATS-friendly markdown.
 
-    Sections rendered in order: name + contact line, summary, experience,
-    education, skills, awards, certifications, selected projects,
-    thought leadership. Empty sections are omitted entirely (an empty
-    "## Education" heading would confuse ATS parsers more than its
-    absence).
+    The header (name + contact + profiles) always comes first; the body
+    sections are ordered per `SECTION_ORDER[template]` to match the
+    recruiter-pleasing convention for that template family. Thought
+    leadership is appended after the ordered sections (it's a "nice to
+    have" trailing block, not a primary section). Empty sections are
+    omitted entirely — an empty `## Education` heading confuses ATS
+    parsers more than its absence.
     """
     if not isinstance(content, dict):
         raise ValueError("content must be a dict")
+    if template not in SUPPORTED_TEMPLATES:
+        raise ValueError(
+            f"unsupported template {template!r}; expected one of {SUPPORTED_TEMPLATES}"
+        )
 
     basics = content.get("basics") or {}
     name = (basics.get("name") or "Unknown").strip()
@@ -345,57 +381,87 @@ def render_master_cv_to_markdown(content: dict) -> str:
     if profiles_line:
         parts.append(profiles_line)
 
-    # --- Summary ---------------------------------------------------
+    # --- Build per-section markdown chunks (header + body) --------
+    # Each value is the full chunk to append OR an empty string when the
+    # underlying data is absent. The "skip empty section" behavior is
+    # preserved by checking truthiness during the ordered emit below.
+
+    # Summary chunk also carries the Languages line — Languages is a
+    # contact-adjacent fact, not a top-level section, so it stays glued
+    # to summary regardless of template ordering.
     summary_text = _strip_html(basics.get("summary_text") or basics.get("summary"))
-    if summary_text:
-        parts.append("\n## Summary\n")
-        parts.append(summary_text)
-
     languages = basics.get("languages")
-    if isinstance(languages, list) and languages:
-        parts.append("")
-        parts.append(f"**Languages:** {', '.join(str(lang) for lang in languages)}")
+    if summary_text or (isinstance(languages, list) and languages):
+        summary_lines: list[str] = [f"\n{_section_header('Summary', template)}\n"]
+        if summary_text:
+            summary_lines.append(summary_text)
+        if isinstance(languages, list) and languages:
+            summary_lines.append("")
+            summary_lines.append(
+                f"**Languages:** {', '.join(str(lang) for lang in languages)}"
+            )
+        summary_chunk = "\n".join(summary_lines)
+    else:
+        summary_chunk = ""
 
-    # --- Experience ------------------------------------------------
     work_block = _render_work(content.get("work") or [])
-    if work_block:
-        parts.append("\n## Experience\n")
-        parts.append(work_block)
+    experience_chunk = (
+        f"\n{_section_header('Experience', template)}\n\n{work_block}" if work_block else ""
+    )
 
-    # --- Education -------------------------------------------------
     education_block = _render_education(content.get("education") or [])
-    if education_block:
-        parts.append("\n## Education\n")
-        parts.append(education_block)
+    education_chunk = (
+        f"\n{_section_header('Education', template)}\n\n{education_block}"
+        if education_block
+        else ""
+    )
 
-    # --- Skills ----------------------------------------------------
     skills_block = _join_skills(content.get("skills") or {})
-    if skills_block:
-        parts.append("\n## Skills\n")
-        parts.append(skills_block)
+    skills_chunk = (
+        f"\n{_section_header('Skills', template)}\n\n{skills_block}" if skills_block else ""
+    )
 
-    # --- Awards ----------------------------------------------------
     awards_block = _render_awards(content.get("awards") or [])
-    if awards_block:
-        parts.append("\n## Awards & Recognition\n")
-        parts.append(awards_block)
+    awards_chunk = (
+        f"\n{_section_header('Awards & Recognition', template)}\n\n{awards_block}"
+        if awards_block
+        else ""
+    )
 
-    # --- Certifications --------------------------------------------
     certs_block = _render_certifications(content.get("certifications") or [])
-    if certs_block:
-        parts.append("\n## Certifications\n")
-        parts.append(certs_block)
+    certifications_chunk = (
+        f"\n{_section_header('Certifications', template)}\n\n{certs_block}"
+        if certs_block
+        else ""
+    )
 
-    # --- Selected Projects -----------------------------------------
     projects_block = _render_projects(content.get("projects") or [])
-    if projects_block:
-        parts.append("\n## Selected Projects\n")
-        parts.append(projects_block)
+    projects_chunk = (
+        f"\n{_section_header('Selected Projects', template)}\n\n{projects_block}"
+        if projects_block
+        else ""
+    )
 
-    # --- Thought Leadership ----------------------------------------
+    section_blocks: dict[str, str] = {
+        "summary": summary_chunk,
+        "experience": experience_chunk,
+        "education": education_chunk,
+        "skills": skills_chunk,
+        "awards": awards_chunk,
+        "certifications": certifications_chunk,
+        "projects": projects_chunk,
+    }
+
+    # --- Emit in template-specific order ---------------------------
+    for key in SECTION_ORDER[template]:
+        chunk = section_blocks.get(key, "")
+        if chunk:
+            parts.append(chunk)
+
+    # --- Thought Leadership (always trailing) ---------------------
     thought_block = _render_thought_leadership(content.get("thought_leadership") or [])
     if thought_block:
-        parts.append("\n## Thought Leadership\n")
+        parts.append(f"\n{_section_header('Thought Leadership', template)}\n")
         parts.append(thought_block)
 
     return "\n".join(parts).strip() + "\n"

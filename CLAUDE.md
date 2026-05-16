@@ -2,6 +2,15 @@
 
 Automated job hunting pipeline targeting remote AI-era agency roles (vibe coding, AI automation, AI video) in US/EU/AU markets. Core differentiator: Claude CLI orchestration (Opus for CV tailoring, Sonnet for scoring/email drafting).
 
+## 🧠 Vault Context Link
+
+Pre-read MANDATORY via `obsidian` MCP `read-note`:
+- `20-Projects/jobhunter/README.md` — pipeline state, scoring rubric versions
+- `10-Identity/positioning.md` — USP, target audience (re-read kalau modify CV/email tone)
+- `10-Identity/ali.md` — voice (auto-loaded global)
+
+Persist decisions: append ke vault README "Decision Log" via `obsidian` MCP `edit-note`. CV tailoring + cold email harus konsisten dengan positioning vault.
+
 ## Tech Stack
 
 ### Backend

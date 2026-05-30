@@ -1,0 +1,1152 @@
+{
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/frontend/tailwind.config.ts": {
+    "mtime": 1776413170.0,
+    "ast_hash": "9f9fe5ee2d651f2e3e20beb31e30ad5d",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/frontend/package.json": {
+    "mtime": 1777599770.0,
+    "ast_hash": "d6e1fa174f41daaebeb2a14bb306a71a",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/frontend/tsconfig.json": {
+    "mtime": 1776413154.0,
+    "ast_hash": "6ac3edfc84fdba99c8337828ca0fd3ed",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/frontend/vitest.config.ts": {
+    "mtime": 1776413200.0,
+    "ast_hash": "6f03a6fe9bf3aea45caf8e54ff0268f3",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/frontend/postcss.config.js": {
+    "mtime": 1776413186.0,
+    "ast_hash": "8640f9b2e6475cc3f5b1ff4548925765",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/frontend/vitest.setup.ts": {
+    "mtime": 1776413218.0,
+    "ast_hash": "3709e3aa95abf0544678f0f2d9b46702",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/frontend/.eslintrc.json": {
+    "mtime": 1776413396.0,
+    "ast_hash": "9b8be5ef96ddd69ecd1ddc1554c61a88",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/frontend/next.config.ts": {
+    "mtime": 1776413162.0,
+    "ast_hash": "ac1fd4dac71823f04045b335098d48db",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/frontend/__tests__/auth.test.ts": {
+    "mtime": 1776413414.0,
+    "ast_hash": "fcf6a5a3cf92a9bab35aa2101a9ec645",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/frontend/src/app/layout.tsx": {
+    "mtime": 1776413320.0,
+    "ast_hash": "71c1dc2306d15219cdc13a0c6a8c043b",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/frontend/src/app/page.tsx": {
+    "mtime": 1776413328.0,
+    "ast_hash": "3f3940a155fda4c70039234063d2198f",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/frontend/src/app/providers.tsx": {
+    "mtime": 1776413310.0,
+    "ast_hash": "f8f2f438ccbdffa9f2a9d5c45307effb",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/frontend/src/app/(authed)/layout.tsx": {
+    "mtime": 1776413366.0,
+    "ast_hash": "33f117ce57757de8ed569b203f088171",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/frontend/src/app/(authed)/settings/page.tsx": {
+    "mtime": 1778122088.0,
+    "ast_hash": "a002e05fcae84fabf89e0f347bd76fdf",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/frontend/src/app/(authed)/emails/page.tsx": {
+    "mtime": 1777599770.0,
+    "ast_hash": "90d4cfeab8fee1587fc7d4e8746ec420",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/frontend/src/app/(authed)/apify-pool/page.tsx": {
+    "mtime": 1777497848.0,
+    "ast_hash": "afeefd2c9b74b686d27cc9002f207360",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/frontend/src/app/(authed)/dashboard/loading.tsx": {
+    "mtime": 1776413404.0,
+    "ast_hash": "7e6616262d4e62f24653489f017a29af",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/frontend/src/app/(authed)/dashboard/page.tsx": {
+    "mtime": 1777599770.0,
+    "ast_hash": "329a77eb8f5856f04ff3b4015374489d",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/frontend/src/app/(authed)/applications/page.tsx": {
+    "mtime": 1777518698.0,
+    "ast_hash": "1710484b074f86b15a4979948c2871ef",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/frontend/src/app/(authed)/applications/[id]/page.tsx": {
+    "mtime": 1777518734.0,
+    "ast_hash": "473253f216d48bb72b86eefdf10733d5",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/frontend/src/app/(authed)/portfolio/page.tsx": {
+    "mtime": 1777599770.0,
+    "ast_hash": "068bd82081d6455a6556602349828bd1",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/frontend/src/app/(authed)/cv/page.tsx": {
+    "mtime": 1777599770.0,
+    "ast_hash": "aa942b9078835a0ed3b43b977a175bd8",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/frontend/src/app/(authed)/cv/generated/[id]/page.tsx": {
+    "mtime": 1776413636.0,
+    "ast_hash": "cf73b72b14925b153fe88563122336dd",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/frontend/src/app/(authed)/jobs/page.tsx": {
+    "mtime": 1777602090.0,
+    "ast_hash": "4cc19f451f8801767c14fab46e8f0568",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/frontend/src/app/(authed)/jobs/[id]/page.tsx": {
+    "mtime": 1777602090.0,
+    "ast_hash": "b03d5477d897290833b48960099ced4f",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/frontend/src/app/login/page.tsx": {
+    "mtime": 1777518630.0,
+    "ast_hash": "a1d3babba9e7da35799b87d4feb465dc",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/frontend/src/components/settings/CredentialsTab.tsx": {
+    "mtime": 1777599770.0,
+    "ast_hash": "cf6c407ac68c66e9b20acb3c3673befe",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/frontend/src/components/settings/SchedulesTab.tsx": {
+    "mtime": 1777599770.0,
+    "ast_hash": "aa59fd67656d3023d46f5edae8b0f7cc",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/frontend/src/components/settings/MasterCvTab.tsx": {
+    "mtime": 1778130420.0,
+    "ast_hash": "279cc904a71ea8425e0e25009979dd93",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/frontend/src/components/settings/PortfolioTab.tsx": {
+    "mtime": 1778067318.0,
+    "ast_hash": "a2def0abeda6b471925e15e274960fc0",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/frontend/src/components/settings/AtsCvTab.tsx": {
+    "mtime": 1778134282.0,
+    "ast_hash": "4627e5e1fe5862840407e442f617b3ae",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/frontend/src/components/shared/CompanyLogo.tsx": {
+    "mtime": 1777600430.0,
+    "ast_hash": "9c2b219265a277fbea81128f229cc9fc",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/frontend/src/components/shared/Sidebar.tsx": {
+    "mtime": 1777599770.0,
+    "ast_hash": "27b90e262906d9910d990d6acbbb835b",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/frontend/src/components/shared/ProgressModal.tsx": {
+    "mtime": 1777464372.0,
+    "ast_hash": "8d9b5428dbc169791a21c1586ef8e6a4",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/frontend/src/components/dashboard/StatsCards.tsx": {
+    "mtime": 1777518646.0,
+    "ast_hash": "87f925342b3ea1f91fc3cfeea382e0c7",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/frontend/src/components/dashboard/WeeklyChart.tsx": {
+    "mtime": 1777465160.0,
+    "ast_hash": "426a022e903b07759f4c07021345ad24",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/frontend/src/components/easy-apply/EasyApplyModal.tsx": {
+    "mtime": 1777601146.0,
+    "ast_hash": "04739c9bac16e7f1d2f893b8c714c47e",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/frontend/src/components/easy-apply/DraftReviewPane.tsx": {
+    "mtime": 1777601146.0,
+    "ast_hash": "025d1947494946029e1edf1ac4adf51f",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/frontend/src/__tests__/Sidebar.test.tsx": {
+    "mtime": 1777599770.0,
+    "ast_hash": "95c5bfdb568bc27ad673d533c213e519",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/frontend/src/__tests__/EasyApplyModal.test.tsx": {
+    "mtime": 1777601146.0,
+    "ast_hash": "925e621e143b56fc98c9e2d3c428158e",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/frontend/src/__tests__/CompanyLogo.test.tsx": {
+    "mtime": 1777600430.0,
+    "ast_hash": "7834b3e6d950b2ab10dfe31830a3e900",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/frontend/src/hooks/useApplications.ts": {
+    "mtime": 1776413480.0,
+    "ast_hash": "faf6d08cbea13b34ad5403b068434f17",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/frontend/src/hooks/useJobs.ts": {
+    "mtime": 1777602090.0,
+    "ast_hash": "fff88ed072efd0ae72aa96fc26364659",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/frontend/src/hooks/useStats.ts": {
+    "mtime": 1777465146.0,
+    "ast_hash": "7338dd4d3b6f7e41f17eec1fbcdb5998",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/frontend/src/hooks/useEasyApply.ts": {
+    "mtime": 1777601146.0,
+    "ast_hash": "0f5a5b5dcfaedb18ffcfaf66245b0bb3",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/frontend/src/hooks/useMailbox.ts": {
+    "mtime": 1777497784.0,
+    "ast_hash": "af55594f89d60125580ee7c82d78c309",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/frontend/src/hooks/useEmails.ts": {
+    "mtime": 1777601146.0,
+    "ast_hash": "935751108b6d8c2ffd57218e3f15c232",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/frontend/src/hooks/useAuth.ts": {
+    "mtime": 1776413282.0,
+    "ast_hash": "70d68a843439a7fce2cfd263a0e70ae2",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/frontend/src/hooks/useApify.ts": {
+    "mtime": 1777589200.0,
+    "ast_hash": "188139862e46810176d4819fd8396663",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/frontend/src/hooks/useScrapeConfigs.ts": {
+    "mtime": 1776413548.0,
+    "ast_hash": "eed33b6047fbea505c73de93bc5c8539",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/frontend/src/hooks/useProgress.ts": {
+    "mtime": 1777464358.0,
+    "ast_hash": "34e925e9af96ee0b488a92badc92db24",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/frontend/src/hooks/useFirecrawl.ts": {
+    "mtime": 1777589068.0,
+    "ast_hash": "4814fd3d1f45f0790f56cff781227a3b",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/frontend/src/hooks/useCV.ts": {
+    "mtime": 1778134282.0,
+    "ast_hash": "3b2256026ddde123e258d651c71c65b8",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/frontend/src/hooks/usePortfolio.ts": {
+    "mtime": 1777604384.0,
+    "ast_hash": "540cf121e88c748e6e2717d9f362cc10",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/frontend/src/lib/utils.ts": {
+    "mtime": 1776413260.0,
+    "ast_hash": "313580f7f3a1c0f5f746da20091ce91c",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/frontend/src/lib/api.ts": {
+    "mtime": 1776413236.0,
+    "ast_hash": "d017e8766876af4c8011295d4ba19e26",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/frontend/src/lib/format.ts": {
+    "mtime": 1777518308.0,
+    "ast_hash": "a4916a0022919274a37a50192524ea88",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/frontend/src/lib/auth.ts": {
+    "mtime": 1776413248.0,
+    "ast_hash": "3d17ac5deaecb95e713d5c39094d6efe",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/app/config.py": {
+    "mtime": 1778051576.0,
+    "ast_hash": "a32520f7a5135fe7242474f9f73f8477",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/app/database.py": {
+    "mtime": 1776403402.0,
+    "ast_hash": "216001a1aa3860cf250940c136358040",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/app/__init__.py": {
+    "mtime": 1776301242.0,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/app/scheduler.py": {
+    "mtime": 1776413074.0,
+    "ast_hash": "6549e6fc1afbb5ef05f8fb3ef06d2c33",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/app/main.py": {
+    "mtime": 1777557920.0,
+    "ast_hash": "ee4456cde8c54fd307e8f6cb0a6f40f1",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/app/core/deps.py": {
+    "mtime": 1776403420.0,
+    "ast_hash": "ab61ff51da50e7b2bfff6c3bd915e871",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/app/core/security.py": {
+    "mtime": 1776403402.0,
+    "ast_hash": "b1f5ce9dc53a3a204d60e630234e5209",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/app/core/__init__.py": {
+    "mtime": 1776301242.0,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/app/utils/html_strip.py": {
+    "mtime": 1777509872.0,
+    "ast_hash": "590b693c22593d9be05c90e00b8b037e",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/app/utils/deduplicator.py": {
+    "mtime": 1776403988.0,
+    "ast_hash": "1dd84cce9674486a7b6545b332dc71a9",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/app/utils/location_splitter.py": {
+    "mtime": 1776404752.0,
+    "ast_hash": "99fa545e49e379bf7abf9ec1adf6263a",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/app/utils/title_filter.py": {
+    "mtime": 1777557606.0,
+    "ast_hash": "228c48b449bd65d0fb376b74b18a1374",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/app/utils/__init__.py": {
+    "mtime": 1776301242.0,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/app/models/user.py": {
+    "mtime": 1776403402.0,
+    "ast_hash": "38a9cb15eb28e3ea0d26fcd9b8b524c7",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/app/models/company.py": {
+    "mtime": 1776403402.0,
+    "ast_hash": "65846dc12f423fad547ed8196b86cb5d",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/app/models/email_draft.py": {
+    "mtime": 1777497522.0,
+    "ast_hash": "cfd01185460390f65f8e7e8e4f16cc0f",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/app/models/scrape_config.py": {
+    "mtime": 1776403402.0,
+    "ast_hash": "58e5c390c21af38508aea643a6f66bb4",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/app/models/job.py": {
+    "mtime": 1777602090.0,
+    "ast_hash": "75d450ca6e72daa3217b0f1a084cf0bf",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/app/models/portfolio_asset.py": {
+    "mtime": 1776403402.0,
+    "ast_hash": "e9f26b3efe00cb5b4fb189a77e77c0c0",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/app/models/agent_job.py": {
+    "mtime": 1776403402.0,
+    "ast_hash": "ac0f64538d1a68d9b60022043d774b82",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/app/models/__init__.py": {
+    "mtime": 1776301242.0,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/app/models/application.py": {
+    "mtime": 1776403402.0,
+    "ast_hash": "7ffa952061f3f7e40fa7e3564fee03f2",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/app/models/apify_account.py": {
+    "mtime": 1776403402.0,
+    "ast_hash": "41917361472603629a23337c434ae766",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/app/models/firecrawl_account.py": {
+    "mtime": 1777588954.0,
+    "ast_hash": "79c316dd4d0cd7d8a814a35a94c31987",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/app/models/mailbox.py": {
+    "mtime": 1777497382.0,
+    "ast_hash": "ffe4a89c071dd89d2a8df540435b7b9b",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/app/models/cv.py": {
+    "mtime": 1778058378.0,
+    "ast_hash": "ed1e661a47eba8c45f68062cb0a8008d",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/app/schemas/auth.py": {
+    "mtime": 1776375998.0,
+    "ast_hash": "92fd334af7364f1e13efb6289cd39fd6",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/app/schemas/scraper.py": {
+    "mtime": 1776403726.0,
+    "ast_hash": "f60fc1e492cff8eb01ca5165d1781e97",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/app/schemas/apify.py": {
+    "mtime": 1776404614.0,
+    "ast_hash": "21eb989203ae69930d8f2c4fa8deeaf5",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/app/schemas/scrape_config.py": {
+    "mtime": 1776406238.0,
+    "ast_hash": "fbb707b0dfac851985fca660dc67d70a",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/app/schemas/job.py": {
+    "mtime": 1777602090.0,
+    "ast_hash": "442dcb7fc40b6c59bafbee37157854cf",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/app/schemas/__init__.py": {
+    "mtime": 1776301242.0,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/app/schemas/application.py": {
+    "mtime": 1777599770.0,
+    "ast_hash": "eba3d2d1144ab0de8242b68213659b4d",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/app/schemas/email.py": {
+    "mtime": 1776412876.0,
+    "ast_hash": "f42e52df4f4e67910859772f5c870e20",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/app/schemas/callbacks.py": {
+    "mtime": 1776406810.0,
+    "ast_hash": "f3de3037608ce7facd3a4843acb24d20",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/app/schemas/mailbox.py": {
+    "mtime": 1777497386.0,
+    "ast_hash": "f707b02f40bed0013a23f1df6c49c16d",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/app/schemas/cv.py": {
+    "mtime": 1778109170.0,
+    "ast_hash": "13f903ab8e33af4a681912f68733917a",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/app/schemas/portfolio.py": {
+    "mtime": 1776411182.0,
+    "ast_hash": "b37b135f11e0c43463a5d7636407733d",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/app/schemas/firecrawl.py": {
+    "mtime": 1777588970.0,
+    "ast_hash": "c75134fe5a1e3de86120b2d83d4e7aef",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/app/api/auth.py": {
+    "mtime": 1776403402.0,
+    "ast_hash": "4d6bba52283af5930c6b50a8ded67c51",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/app/api/enrichment.py": {
+    "mtime": 1777558506.0,
+    "ast_hash": "d7d19b61d868963156c0d926a4246886",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/app/api/scraper.py": {
+    "mtime": 1777469852.0,
+    "ast_hash": "03ba9454278c66fce12574efb07ca9f7",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/app/api/apify.py": {
+    "mtime": 1777589032.0,
+    "ast_hash": "f978356b41bbd93d5b13af4f77ee88b6",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/app/api/applications.py": {
+    "mtime": 1777603214.0,
+    "ast_hash": "9a980b4397ccbedebdc1ba227f5288c8",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/app/api/emails.py": {
+    "mtime": 1777599770.0,
+    "ast_hash": "ac9a3de82fec2abf90028e112aab3bef",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/app/api/__init__.py": {
+    "mtime": 1776301242.0,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/app/api/ws.py": {
+    "mtime": 1777464214.0,
+    "ast_hash": "22e78fb18f349f4121f13604927e03ed",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/app/api/jobs.py": {
+    "mtime": 1777602090.0,
+    "ast_hash": "571f489782458313ad8e614776f01eb4",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/app/api/callbacks.py": {
+    "mtime": 1777497510.0,
+    "ast_hash": "3460b0d1cc3473709a710cedf7bfee32",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/app/api/mailbox.py": {
+    "mtime": 1777497622.0,
+    "ast_hash": "893f091c157722d985f3014b8e4f67f7",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/app/api/cv.py": {
+    "mtime": 1778134282.0,
+    "ast_hash": "4d96bd82b059d67459851c64af9ae8ab",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/app/api/portfolio.py": {
+    "mtime": 1778109242.0,
+    "ast_hash": "191d8ef0df518f487cd3606d34c59b44",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/app/api/firecrawl.py": {
+    "mtime": 1777589040.0,
+    "ast_hash": "4183c42f94ee6de1e606f9f0e1e9405f",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/app/scrapers/jobspy_scraper.py": {
+    "mtime": 1776404828.0,
+    "ast_hash": "14ab3932881c20661a771c453b469576",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/app/scrapers/remoteok.py": {
+    "mtime": 1776403988.0,
+    "ast_hash": "1cb36e5791c149e91ca3cfbb4be90265",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/app/scrapers/arbeitnow.py": {
+    "mtime": 1776403988.0,
+    "ast_hash": "db4ef7e12a766af067b4322ae0468ae3",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/app/scrapers/aggregator.py": {
+    "mtime": 1777470806.0,
+    "ast_hash": "d06ec1ba9ae300a5310fd26a7c67d747",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/app/scrapers/linkedin_apify.py": {
+    "mtime": 1776404752.0,
+    "ast_hash": "f8ad58b27180c0462675b63d72d43b4d",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/app/scrapers/__init__.py": {
+    "mtime": 1776301242.0,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/app/scrapers/weworkremotely.py": {
+    "mtime": 1777556992.0,
+    "ast_hash": "fe9ba1a1773fcb4d495d1a7c38f60004",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/app/scrapers/adzuna.py": {
+    "mtime": 1776403988.0,
+    "ast_hash": "04cec555563abdfdaf6a1c0f2f51e30a",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/app/scrapers/hiring_cafe.py": {
+    "mtime": 1776403988.0,
+    "ast_hash": "01dc3d6b56c96ca5b7f1d997dfe80274",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/app/scrapers/wellfound_apify.py": {
+    "mtime": 1776404482.0,
+    "ast_hash": "f241912828cb113f35ffeba5d309bcb5",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/app/scrapers/aijobs.py": {
+    "mtime": 1777470792.0,
+    "ast_hash": "7ad7be46210ee95aa29aec758220b7a3",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/app/scrapers/hn_algolia.py": {
+    "mtime": 1776403988.0,
+    "ast_hash": "deed323af27e6addb8249f2d70d2f3fe",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/app/scrapers/base.py": {
+    "mtime": 1776403748.0,
+    "ast_hash": "626e77991f44aab4e2c590d76b0c737f",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/app/services/cv_generator.py": {
+    "mtime": 1776411544.0,
+    "ast_hash": "1494fc64dfd754e345ecf73ed7205d27",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/app/services/encryption.py": {
+    "mtime": 1776404368.0,
+    "ast_hash": "4998fbe3bd1a71b23720e4109c8b36a8",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/app/services/cv_parser.py": {
+    "mtime": 1777706748.0,
+    "ast_hash": "b300aea622a3d2c5ef16df1d6a0d93ec",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/app/services/portfolio_auditor.py": {
+    "mtime": 1776411182.0,
+    "ast_hash": "a9132671987205c772458a3e30097e35",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/app/services/mailer_service.py": {
+    "mtime": 1777541514.0,
+    "ast_hash": "f0ab0dc63050b74477ca358e45596883",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/app/services/scorer_service.py": {
+    "mtime": 1776412232.0,
+    "ast_hash": "8ad9780869ba4f1bf37ef101e0332ece",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/app/services/multi_scraper.py": {
+    "mtime": 1777711188.0,
+    "ast_hash": "68e9b541002fc3d32403ad96fff4da77",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/app/services/docx_service.py": {
+    "mtime": 1778118744.0,
+    "ast_hash": "923c76ad505cb78e24037de955ae6d6b",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/app/services/__init__.py": {
+    "mtime": 1776301242.0,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/app/services/firecrawl_service.py": {
+    "mtime": 1777589008.0,
+    "ast_hash": "1d6ba4e75393c5847332362827b47317",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/app/services/portfolio_extractor.py": {
+    "mtime": 1777608922.0,
+    "ast_hash": "dc49f3feff376bd36bc04e0f38971627",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/app/services/master_cv_renderer.py": {
+    "mtime": 1778137130.0,
+    "ast_hash": "d91d9faf9418bd2e59f50418e8c4c47f",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/app/services/claude_service.py": {
+    "mtime": 1777467228.0,
+    "ast_hash": "da5ee3ed3a9ea381754a72b3a8e56b05",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/app/services/apify_pool.py": {
+    "mtime": 1776404752.0,
+    "ast_hash": "cdb0ca5849136a4f75341a76e0a7814e",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/app/services/llm_extractor.py": {
+    "mtime": 1777615130.0,
+    "ast_hash": "a6e8490aec954f8628add2bfd722d7b3",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/app/services/portfolio_cv_api.py": {
+    "mtime": 1778110068.0,
+    "ast_hash": "01e7aa5cc8c19172b36bc9b581006607",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/app/services/application_service.py": {
+    "mtime": 1776412444.0,
+    "ast_hash": "a7ba1839dd0c7a444f316fed60af1ca9",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/app/services/scraper_service.py": {
+    "mtime": 1777509908.0,
+    "ast_hash": "d3d40c0234fe6711b356e56ed5e9d3ff",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/app/services/email_generator.py": {
+    "mtime": 1776412696.0,
+    "ast_hash": "3f2d4939ef366867852f94c1d9b2eb5b",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/tests/test_apify_scrapers.py": {
+    "mtime": 1776404576.0,
+    "ast_hash": "8a1bcfbd85c796bd7c1cb71a396621ef",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/tests/conftest.py": {
+    "mtime": 1777497570.0,
+    "ast_hash": "67e7b735e25a629255d5a5ae607af2dc",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/tests/test_cv_render_api.py": {
+    "mtime": 1776412250.0,
+    "ast_hash": "30a376965db56f0308892b3a035981b1",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/tests/test_callbacks_api.py": {
+    "mtime": 1776410234.0,
+    "ast_hash": "07d030a4fccffe680aa06256453e8a19",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/tests/test_cv_upload.py": {
+    "mtime": 1778058532.0,
+    "ast_hash": "373f95315b276516a2e35a54f7719e13",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/tests/test_cv_api.py": {
+    "mtime": 1776410966.0,
+    "ast_hash": "898d089362a1c0f843615b2a4065e336",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/tests/test_enrichment_api.py": {
+    "mtime": 1776406082.0,
+    "ast_hash": "789aa95d37a55c3b561ba524a5dcd0b7",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/tests/test_ws_progress.py": {
+    "mtime": 1777464244.0,
+    "ast_hash": "a3fe6f9292695c8b29ed0045707eebfe",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/tests/test_auth.py": {
+    "mtime": 1776381074.0,
+    "ast_hash": "e02b2bad35e45529c52268094f8b08a6",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/tests/test_apify_pool.py": {
+    "mtime": 1776404752.0,
+    "ast_hash": "817d1261b7716bedbca7e0c67a4f86c2",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/tests/test_claude_service.py": {
+    "mtime": 1777467258.0,
+    "ast_hash": "1c3bd3e54da36dbd5e51671316b94c47",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/tests/test_mailbox_api.py": {
+    "mtime": 1777497592.0,
+    "ast_hash": "271b80cdd2ae07cbcfaaa077be288559",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/tests/test_apify_api.py": {
+    "mtime": 1776404752.0,
+    "ast_hash": "0332fd8e397489ba4785938a434fd83d",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/tests/__init__.py": {
+    "mtime": 1776316140.0,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/tests/test_scheduler.py": {
+    "mtime": 1776413074.0,
+    "ast_hash": "9b9c55733f84ddab3b43052ecb364f80",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/tests/test_multi_scraper.py": {
+    "mtime": 1777707736.0,
+    "ast_hash": "128199f2568732b1927fe2c3dfbe8348",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/tests/test_weworkremotely_scraper.py": {
+    "mtime": 1777470880.0,
+    "ast_hash": "db3fc2fbc6f37abe7ee42b17c6c1ca8b",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/tests/test_title_filter.py": {
+    "mtime": 1777557626.0,
+    "ast_hash": "6838b05dbc17ce6beacaa255392f61d4",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/tests/test_docx_service.py": {
+    "mtime": 1776412052.0,
+    "ast_hash": "88e720d8c3a71dd4a559c594e3079768",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/tests/test_applications_api.py": {
+    "mtime": 1777465112.0,
+    "ast_hash": "da6f71efbf7c80e220494a58f4c56b2a",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/tests/test_models_integration.py": {
+    "mtime": 1776403402.0,
+    "ast_hash": "a3131dd719dc15a7f5e8edd5bb0afd1f",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/tests/test_master_cv_renderer_ordering.py": {
+    "mtime": 1778137246.0,
+    "ast_hash": "9f7ecb6beeca9835cd64623a32f66b35",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/tests/test_aggregator.py": {
+    "mtime": 1776433256.0,
+    "ast_hash": "7619f9e7f7d8e617548b309a21058607",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/tests/test_deduplicator.py": {
+    "mtime": 1776403870.0,
+    "ast_hash": "b90277f5bc78773b822691dcda2b9c3a",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/tests/test_easy_apply.py": {
+    "mtime": 1777599770.0,
+    "ast_hash": "dc9666fe6212fd68416703d99b0635aa",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/tests/test_jobs_api.py": {
+    "mtime": 1776406438.0,
+    "ast_hash": "5c01bd6485b1dfa38bfc6842cd03904f",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/tests/test_portfolio_auditor.py": {
+    "mtime": 1776411182.0,
+    "ast_hash": "9149e688ad75654f281a1e70f2c4c26e",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/tests/test_config.py": {
+    "mtime": 1776433240.0,
+    "ast_hash": "c46619e6d3cbd247422fd8ec6c7d2e15",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/tests/test_models.py": {
+    "mtime": 1776403402.0,
+    "ast_hash": "0939395d60e88df7988652b46a0b4098",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/tests/test_portfolio_import.py": {
+    "mtime": 1778110176.0,
+    "ast_hash": "733db7ac5a2400883c2327a6fe2003a2",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/tests/test_jobs_irrelevant.py": {
+    "mtime": 1777602090.0,
+    "ast_hash": "80732d583ab0abfdc9760ae2ef27349b",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/tests/test_health.py": {
+    "mtime": 1777499512.0,
+    "ast_hash": "12210bfa081fb669065c4bd6aa314141",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/tests/test_scraper_api.py": {
+    "mtime": 1776433324.0,
+    "ast_hash": "322aafa1c345144a0bce2bf9f5d285d9",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/tests/test_cv_generation.py": {
+    "mtime": 1776411526.0,
+    "ast_hash": "9d8d56a20e83c69322e3493e2c30e979",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/tests/test_location_splitter.py": {
+    "mtime": 1776404556.0,
+    "ast_hash": "d63376f9caaa002ae0ecdd3e169c4843",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/tests/test_jobspy_scraper.py": {
+    "mtime": 1776404598.0,
+    "ast_hash": "213248e757b3cf6384dea420a04efc33",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/tests/test_scrapers.py": {
+    "mtime": 1776403988.0,
+    "ast_hash": "99fd98e42c4b547ba67137af68f0abc1",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/tests/test_html_strip.py": {
+    "mtime": 1777510126.0,
+    "ast_hash": "581d5d6e6e47da6623e32e50cd0abeb4",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/tests/test_cv_template_generator.py": {
+    "mtime": 1778134266.0,
+    "ast_hash": "4c36e6f3e687fa7dabc8b2ee9926fee6",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/tests/test_scorer_service.py": {
+    "mtime": 1776412202.0,
+    "ast_hash": "bcc1ac5bb7af580b0203b4ce135b0610",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/tests/test_aijobs_scraper.py": {
+    "mtime": 1777470894.0,
+    "ast_hash": "3dd41f4c89f57713d2edc5e2db04b349",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/tests/test_firecrawl_service.py": {
+    "mtime": 1776406082.0,
+    "ast_hash": "16ca3a95ae0d996d3fecf6870406c0ce",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/tests/test_encryption.py": {
+    "mtime": 1776404378.0,
+    "ast_hash": "11f44a4c5ac5d65475b7894687b2c763",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/tests/test_emails_api.py": {
+    "mtime": 1776412876.0,
+    "ast_hash": "8ed4caf26902e72fc1c119b74c4b3352",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/tests/test_portfolio_api.py": {
+    "mtime": 1776411182.0,
+    "ast_hash": "1c3d92eb29d0e3f7683a93a7537bac20",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/scripts/seed_master_cv.py": {
+    "mtime": 1776410966.0,
+    "ast_hash": "02270fbfee63d113b069685afe75fb4f",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/scripts/generate_cv_template.py": {
+    "mtime": 1778134266.0,
+    "ast_hash": "ea6b0210e3242459c9722bf252192da1",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/scripts/update_master_cv_branding.py": {
+    "mtime": 1778138538.0,
+    "ast_hash": "007753d62d258a6afde8e1fc9cf1fd0d",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/scripts/seed_admin.py": {
+    "mtime": 1776410966.0,
+    "ast_hash": "0b855fd76953af8e1d869bb060beff27",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/alembic/env.py": {
+    "mtime": 1777558500.0,
+    "ast_hash": "ce982c21a93c1a37205847c7a149f06a",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/alembic/versions/011_firecrawl_pool.py": {
+    "mtime": 1777558492.0,
+    "ast_hash": "3034ac98afdf60c673b3c45d460bfff9",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/alembic/versions/006_mailbox_config.py": {
+    "mtime": 1777497376.0,
+    "ast_hash": "df547fdce9fe04aca11a7546950afb96",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/alembic/versions/005_extend_scrape_sources.py": {
+    "mtime": 1777470828.0,
+    "ast_hash": "6124c85713ba9e10b3258f6c11c8d84b",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/alembic/versions/ef8d8186f1f9_init_core_tables_users_companies_.py": {
+    "mtime": 1776317094.0,
+    "ast_hash": "7e705f0342f2625924013e677930b304",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/alembic/versions/008_cleanup_jobs.py": {
+    "mtime": 1777509930.0,
+    "ast_hash": "da8457647953de34732a37d91c390a1a",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/alembic/versions/010_firecrawl_config.py": {
+    "mtime": 1777557908.0,
+    "ast_hash": "78cd2e0f8a0210b8de1ba28c5eac3b9b",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/alembic/versions/004_seed_scrape_configs.py": {
+    "mtime": 1776406322.0,
+    "ast_hash": "4abcbc2cc3678ad3f37e72d5da34e583",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/alembic/versions/012_firecrawl_credits.py": {
+    "mtime": 1777588938.0,
+    "ast_hash": "416d694f67a96d24424666f11005f37f",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/alembic/versions/013_user_irrelevant.py": {
+    "mtime": 1777602090.0,
+    "ast_hash": "8980788f90f7cc30ddb4805965a11cc2",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/alembic/versions/014_widen_master_cv_source_type.py": {
+    "mtime": 1778058364.0,
+    "ast_hash": "6ee81d2b61d7daca61dce52581f18385",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/alembic/versions/009_refine_scrape_keywords.py": {
+    "mtime": 1777557648.0,
+    "ast_hash": "3eb97a1fae70dc51cd87db842c38f163",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/alembic/versions/f087c407b308_add_applications_cv_email_config_agent_.py": {
+    "mtime": 1776374514.0,
+    "ast_hash": "fcbcc23067fc10d4c6784a1c1528e466",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/alembic/versions/003_fk_tz_jsonb_indexes.py": {
+    "mtime": 1776402362.0,
+    "ast_hash": "063054a3bcbec7901563c6e1ae153022",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/alembic/versions/007_email_imap_columns.py": {
+    "mtime": 1777497528.0,
+    "ast_hash": "dfaced0d15a1e3e4784f2340edb393b1",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/docs/seed/master-cv.template.json": {
+    "mtime": 1776410862.0,
+    "ast_hash": "c79f7bdcd9ddcf0b9388b0c879811e0b",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/scripts/smoke_cv_import.sh": {
+    "mtime": 1777707404.0,
+    "ast_hash": "be6b45851dbecf961626644860097c09",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/scripts/report_cv.py": {
+    "mtime": 1777707612.0,
+    "ast_hash": "b812ed2e2cbb58f981e9529cdb16b093",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/scripts/deploy.sh": {
+    "mtime": 1777500816.0,
+    "ast_hash": "64da49a6b8240ea041037a4d0805b61a",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/docker-compose.dev.yml": {
+    "mtime": 1776405964.0,
+    "ast_hash": "d7590bcc251829699fb88e7439a0fd1e",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/README.md": {
+    "mtime": 1778131806.0,
+    "ast_hash": "f3318e2f7bda9df4590b750febafe0eb",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/docker-compose.yml": {
+    "mtime": 1778109030.0,
+    "ast_hash": "93284bb56a0fb5e5b2fb3549e3ea9646",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/jobhunter-research-material.md": {
+    "mtime": 1776195966.0,
+    "ast_hash": "aacdc0d16c8ef367a33200a459ada152",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/CLAUDE.md": {
+    "mtime": 1778936448.0,
+    "ast_hash": "0be01bcbfe0f545ace765ccc212be88f",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/jobhunter-architecture.md": {
+    "mtime": 1776195934.0,
+    "ast_hash": "930f9a63f00860edca4a86e5fad4f116",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/requirements.txt": {
+    "mtime": 1777604384.0,
+    "ast_hash": "bfb92aab732395a6d94ddcaa46636d59",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/requirements-dev.txt": {
+    "mtime": 1776403716.0,
+    "ast_hash": "39a6251fcb4fa1b9e9ff5c48e4339264",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/backend/templates/README.md": {
+    "mtime": 1777464112.0,
+    "ast_hash": "f4d673c9cf096827cc3a40a29b8c8c64",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/docs/user-guide.md": {
+    "mtime": 1777465266.0,
+    "ast_hash": "72257a4d9e01bd5d69bf37822134a72e",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/docs/portfolio-cv-api-enhancements.md": {
+    "mtime": 1778052256.0,
+    "ast_hash": "af2d25fafc94a0ac1fc5bcdc62c7b4a8",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/docs/plans/2026-05-02-ats-friendly-cv-import.md": {
+    "mtime": 1777706114.0,
+    "ast_hash": "0b29f3549ec5e16651f4499dc8028107",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/docs/plans/2026-04-30-jobhunter-pool-apply-feedback.md": {
+    "mtime": 1777598662.0,
+    "ast_hash": "5130603bf6fe05419d311ec3aa4e833b",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/docs/plans/2026-04-15-jobhunter-mvp-design.md": {
+    "mtime": 1776299758.0,
+    "ast_hash": "8d852231f678f0c6c7a51b8eb0b5572c",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/docs/plans/2026-05-07-ats-multi-template-rendering.md": {
+    "mtime": 1778134282.0,
+    "ast_hash": "26bea3018addc4515e360b372b576736",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/docs/plans/2026-04-15-jobhunter-ui-design.md": {
+    "mtime": 1776300222.0,
+    "ast_hash": "635b83276304182b3bdd6a2d2aced70c",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/.github/workflows/README.md": {
+    "mtime": 1777502350.0,
+    "ast_hash": "dba633fc98ce3fc67007a90fcb3f2b85",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/.github/workflows/deploy.yml": {
+    "mtime": 1777499560.0,
+    "ast_hash": "68ca167acee1fc177818c862081dd054",
+    "semantic_hash": ""
+  },
+  "/Users/alisadikin/Drive-D/Projects/jobhunter/.github/workflows/ci.yml": {
+    "mtime": 1776403482.0,
+    "ast_hash": "a381ef5fe44e46d7463b63c31306790c",
+    "semantic_hash": ""
+  }
+}

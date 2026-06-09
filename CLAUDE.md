@@ -2,6 +2,16 @@
 
 Automated job hunting pipeline targeting remote AI-era agency roles (vibe coding, AI automation, AI video) in US/EU/AU markets. Core differentiator: Claude CLI orchestration (Opus for CV tailoring, Sonnet for scoring/email drafting).
 
+## 🕸️ graphify (code-structure brain — HOW)
+
+This repo has a knowledge graph at `graphify-out/` (god nodes, community structure, cross-file relationships) — the **HOW (code structure)** half of the two-brain setup in `~/CLAUDE.md` (the Obsidian vault holds the WHY).
+
+**Rules:**
+- **Graph for structure, grep for literals — complementary, not either/or.** Use `graphify query "<question>"` for "where/how is X / what calls Y / which files relate" — it returns a scoped subgraph, far smaller than `GRAPH_REPORT.md` or raw output (local default `graphify-out/graph.json`). Keep grep/Read for literal strings AND code edited since the last `graphify update` (the graph is AST-indexed, not live).
+- Cross-project / "don't know which repo" → federated graph: `graphify query "<question>" --graph ~/.graphify/global-graph.json`.
+- Read `graphify-out/GRAPH_REPORT.md` only for broad architecture review when query doesn't surface enough.
+- **After modifying code, run `graphify update .`** (AST-only, no API cost) so the graph doesn't go stale. Refresh the global brain: `graphify global add graphify-out/graph.json --as jobhunter`.
+
 ## 🧠 Vault Context Link
 
 Pre-read MANDATORY via `obsidian` MCP `read-note`:
